@@ -64,4 +64,19 @@ export const leadAPI = {
     const response = await axiosInstance.put(`/leads/${id}/transfer-to-accounts`, {});
     return response.data;
   },
+
+  createLead: async (data) => {
+    const response = await axiosInstance.post("/leads", data);
+    return response.data;
+  },
+
+  getSalesUsers: async () => {
+    const response = await axiosInstance.get("/users?role=sales");
+    return response.data;
+  },
+
+  getSettings: async () => {
+    const response = await axiosInstance.get("/settings");
+    return response.data;
+  },
 };

@@ -4,9 +4,9 @@ import { useParams, useNavigate } from "react-router-dom";
 import { leadAPI } from "../api/lead";
 import {
   ArrowLeft, Phone, Mail, MessageSquare,
-  Plus, Save, RefreshCw, AlertCircle, CheckCircle2,
-  User, Tag, IndianRupee, Edit3, Send, Wrench,
-  PhoneCall, X, ChevronDown
+  Save, RefreshCw, AlertCircle, CheckCircle2,
+  User, Tag, IndianRupee, Send, Wrench,
+  PhoneCall, Clock
 } from "lucide-react";
 import { toast } from "sonner";
 

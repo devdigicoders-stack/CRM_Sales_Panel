@@ -286,7 +286,7 @@ export default function InterestedLeads() {
             <table className="w-full text-left border-collapse min-w-[1000px]">
               <thead>
                 <tr style={{ backgroundColor: isDark ? `${c.background}99` : `${c.background}80`, borderBottom: `1px solid ${c.border}` }}>
-                  {["#", "Name", "Phone", "Email", "Source", "Status", "Priority", "Follow-up", "Assigned To", "Actions"].map(h => (
+                  {["#", "Name", "Phone", "Email", "Source", "Status", "Priority", "Follow-up", "Assigned To", "Created At", "Created By ID", "Actions"].map(h => (
                     <th key={h} className="px-4 py-3.5 text-[11px] font-black uppercase tracking-wider whitespace-nowrap"
                       style={{ color: c.textSecondary }}>{h}</th>
                   ))}
@@ -340,6 +340,33 @@ export default function InterestedLeads() {
                         </div>
                       ) : <span className="text-xs italic" style={{ color: c.textSecondary }}>Unassigned</span>}
                     </td>
+
+                    <td className="px-4 py-3.5 whitespace-nowrap">
+                      {lead.createdAt ? (
+                        <div>
+                          <p className="text-xs font-bold" style={{ color: c.text }}>
+                            {new Date(lead.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+                          </p>
+                          <p className="text-[11px]" style={{ color: c.textSecondary }}>
+                            {new Date(lead.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}
+                          </p>
+                        </div>
+                      ) : <span className="text-xs" style={{ color: c.textSecondary }}>—</span>}
+                    </td>
+
+                    <td className="px-4 py-3.5 whitespace-nowrap">
+                      {lead.createdBy ? (
+                        <div>
+                          <p className="text-xs font-bold truncate max-w-[110px]" style={{ color: c.text }}>
+                            {lead.createdBy?.name || "—"}
+                          </p>
+                          <p className="text-[10px] font-mono" style={{ color: c.textSecondary }}>
+                            {lead.createdBy?._id || lead.createdBy}
+                          </p>
+                        </div>
+                      ) : <span className="text-xs" style={{ color: c.textSecondary }}>—</span>}
+                    </td>
+
                     <td className="px-4 py-3.5 whitespace-nowrap">
                       <div className="flex items-center gap-1.5">
                         <button onClick={e => handleViewDetails(lead._id, e)}

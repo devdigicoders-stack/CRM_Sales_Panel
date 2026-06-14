@@ -6,7 +6,7 @@ import {
   Users, Phone, Mail, RefreshCw, AlertCircle,
   ChevronLeft, ChevronRight, Eye, UserCheck,
   Search, LayoutGrid, Table2, TrendingUp,
-  PhoneCall, MessageCircle, Tag, X, FileText, Send, Calendar, Upload, ArrowRight, Truck
+  PhoneCall, MessageCircle, Tag, X, FileText, Send, Calendar, Upload, ArrowRight, Truck, Plus
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -80,6 +80,13 @@ export default function AssignedLeads() {
   const [meetingForm, setMeetingForm] = useState({ title: "", date: "", notes: "" });
   const [schedulingMeeting, setSchedulingMeeting] = useState(false);
 
+  const [addLeadModal, setAddLeadModal] = useState(false);
+  const [salesUsers, setSalesUsers]     = useState([]);
+  const [settings, setSettings]         = useState({ leadSources: [], leadTags: [], priorities: [] });
+  const [settingsLoading, setSettingsLoading] = useState(false);
+  const [addLeadForm, setAddLeadForm]   = useState({ name: "", phone: "", email: "", source: "", priority: "medium", assignedTo: "", remark: "", tags: [] });
+  const [addingLead, setAddingLead]     = useState(false);
+
   useEffect(() => { fetchLeads(); }, []);
 
   const fetchLeads = async () => {
@@ -91,6 +98,65 @@ export default function AssignedLeads() {
       setError("Failed to load leads.");
       toast.error("Failed to load leads.");
     } finally { setLoading(false); }
+  };
+
+  const openAddLeadModal = async () => {
+    setAddLeadForm({ name: "", phone: "", email: "", source: "", priority: "medium", assignedTo: "", remark: "", tags: [] });
+    setSettings({ leadSources: [], leadTags: [], priorities: [] });
+    setSettingsLoading(true);
+    setAddLeadModal(true);
+
+    // Settings aur Users alag-alag fetch karo — ek fail ho toh doosra block na ho
+    const [settingsRes, usersRes] = await Promise.allSettled([
+      leadAPI.getSettings(),
+      leadAPI.getSalesUsers(),
+    ]);
+
+    // Settings
+    if (settingsRes.status === "fulfilled") {
+      console.log("settingsRes value:", settingsRes.value);
+      const s = settingsRes.value?.data?.settings || settingsRes.value?.settings || {};
+      const sources    = s.leadSources || [];
+      const tags       = s.leadTags    || [];
+      const priorities = s.priorities  || [];
+      setSettings({ leadSources: sources, leadTags: tags, priorities });
+      setAddLeadForm(f => ({ ...f, source: sources[0] || "", priority: priorities[0] || "" }));
+    } else {
+      console.error("Settings error:", settingsRes.reason);
+    }
+
+    // Sales Users (403 aaye toh quietly ignore karo)
+    if (usersRes.status === "fulfilled") {
+      setSalesUsers(usersRes.value?.data?.users || usersRes.value?.users || []);
+    } else {
+      setSalesUsers([]);
+    }
+
+    setSettingsLoading(false);
+  };
+
+  const handleAddLead = async (e) => {
+    e.preventDefault();
+    if (!addLeadForm.name.trim() || !addLeadForm.phone.trim()) return toast.error("Name and phone required.");
+    setAddingLead(true);
+    try {
+      const payload = {
+        name: addLeadForm.name.trim(),
+        phone: addLeadForm.phone.trim(),
+        email: addLeadForm.email.trim() || undefined,
+        source: addLeadForm.source,
+        priority: addLeadForm.priority,
+        remark: addLeadForm.remark.trim() || undefined,
+        tags: addLeadForm.tags.length > 0 ? addLeadForm.tags : undefined,
+        assignedTo: addLeadForm.assignedTo || undefined,
+      };
+      await leadAPI.createLead(payload);
+      toast.success("Lead added successfully!");
+      setAddLeadModal(false);
+      fetchLeads();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to add lead.");
+    } finally { setAddingLead(false); }
   };
 
   const openRemarkModal = (lead, e) => {
@@ -287,11 +353,13 @@ export default function AssignedLeads() {
             {leads.length} total leads assigned to you
           </p>
         </div>
-        <button onClick={fetchLeads}
-          className="self-start flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border transition-all hover:opacity-80"
-          style={{ backgroundColor: c.surface, borderColor: c.border, color: c.text }}>
-          <RefreshCw size={14} /> Refresh
-        </button>
+        <div className="flex gap-2">
+          <button onClick={openAddLeadModal}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all hover:opacity-90"
+            style={{ backgroundColor: c.primary, color: "#fff" }}>
+            <Plus size={15} /> Add Lead
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
@@ -353,7 +421,7 @@ export default function AssignedLeads() {
             <table className="w-full text-left border-collapse min-w-[1200px]">
               <thead>
                 <tr style={{ backgroundColor: isDark ? `${c.background}99` : `${c.background}80`, borderBottom: `1px solid ${c.border}` }}>
-                  {[["#",""], "Name","Phone","Email","Source","Status","Priority","Assigned To","Actions"].map((h,i) => (
+                  {[["#",""], "Name","Phone","Email","Source","Status","Priority","Assigned To","Created At","Actions"].map((h,i) => (
                     <th key={i} className="px-4 py-3.5 text-[11px] font-black uppercase tracking-wider whitespace-nowrap"
                       style={{ color: c.textSecondary }}>{typeof h === 'string' ? h : h[0]}</th>
                   ))}
@@ -403,6 +471,19 @@ export default function AssignedLeads() {
                       ) : (
                         <span className="text-xs italic" style={{ color: c.textSecondary }}>Unassigned</span>
                       )}
+                    </td>
+
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      {lead.createdAt ? (
+                        <div>
+                          <p className="text-xs font-bold" style={{ color: c.text }}>
+                            {new Date(lead.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+                          </p>
+                          <p className="text-[11px]" style={{ color: c.textSecondary }}>
+                            {new Date(lead.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}
+                          </p>
+                        </div>
+                      ) : <span className="text-xs" style={{ color: c.textSecondary }}>—</span>}
                     </td>
 
                     <td className="px-4 py-3 whitespace-nowrap" onClick={e => e.stopPropagation()}>
@@ -724,6 +805,110 @@ export default function AssignedLeads() {
                 </button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {addLeadModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={e => e.target === e.currentTarget && setAddLeadModal(false)}>
+          <div className="w-full max-w-lg rounded-3xl shadow-2xl flex flex-col" style={{ backgroundColor: c.surface, maxHeight: '90vh' }}>
+            <div className="flex items-center justify-between px-6 py-4 border-b"
+              style={{ borderColor: c.border, backgroundColor: isDark ? `${c.background}99` : `${c.background}70` }}>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${c.primary}18`, color: c.primary }}>
+                  <Plus size={16} />
+                </div>
+                <div>
+                  <h3 className="font-black text-base" style={{ color: c.text }}>Add New Lead</h3>
+                  <p className="text-xs" style={{ color: c.textSecondary }}>Fill details to create a new lead</p>
+                </div>
+              </div>
+              <button onClick={() => setAddLeadModal(false)} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: "#fee2e2", color: "#dc2626" }}><X size={15} /></button>
+            </div>
+
+            <form onSubmit={handleAddLead} className="p-6 space-y-4 overflow-y-auto">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider mb-1.5" style={{ color: c.textSecondary }}>Name *</label>
+                  <input value={addLeadForm.name} onChange={e => setAddLeadForm(f => ({ ...f, name: e.target.value }))}
+                    required placeholder="Full name" className="w-full p-3 rounded-xl border text-sm outline-none" style={inputSt} autoFocus />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider mb-1.5" style={{ color: c.textSecondary }}>Phone *</label>
+                  <input value={addLeadForm.phone} onChange={e => setAddLeadForm(f => ({ ...f, phone: e.target.value }))}
+                    required placeholder="10-digit number" className="w-full p-3 rounded-xl border text-sm outline-none" style={inputSt} />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-black uppercase tracking-wider mb-1.5" style={{ color: c.textSecondary }}>Email</label>
+                <input type="email" value={addLeadForm.email} onChange={e => setAddLeadForm(f => ({ ...f, email: e.target.value }))}
+                  placeholder="email@example.com" className="w-full p-3 rounded-xl border text-sm outline-none" style={inputSt} />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider mb-1.5" style={{ color: c.textSecondary }}>Source</label>
+                  <select value={addLeadForm.source} onChange={e => setAddLeadForm(f => ({ ...f, source: e.target.value }))}
+                    className="w-full p-3 rounded-xl border text-sm font-semibold outline-none" style={inputSt}
+                    disabled={settingsLoading}>
+                    <option value="">{settingsLoading ? "Loading..." : "— Select Source —"}</option>
+                    {settings.leadSources.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider mb-1.5" style={{ color: c.textSecondary }}>Priority</label>
+                  <select value={addLeadForm.priority} onChange={e => setAddLeadForm(f => ({ ...f, priority: e.target.value }))}
+                    className="w-full p-3 rounded-xl border text-sm font-semibold outline-none" style={inputSt}
+                    disabled={settingsLoading}>
+                    {settingsLoading
+                      ? <option>Loading...</option>
+                      : settings.priorities.map(p => <option key={p} value={p}>{p.charAt(0).toUpperCase() + p.slice(1)}</option>)
+                    }
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-black uppercase tracking-wider mb-1.5" style={{ color: c.textSecondary }}>Tags</label>
+                <div className="flex flex-wrap gap-2 p-3 rounded-xl border min-h-[48px]" style={{ ...inputSt, borderColor: c.border }}>
+                  {settingsLoading
+                    ? <span className="text-xs" style={{ color: c.textSecondary }}>Loading tags…</span>
+                    : settings.leadTags.map(tag => {
+                        const selected = addLeadForm.tags[0] === tag;
+                        return (
+                          <button key={tag} type="button"
+                            onClick={() => setAddLeadForm(f => ({ ...f, tags: selected ? [] : [tag] }))}
+                            className="px-2.5 py-1 rounded-full text-[11px] font-bold border transition-all"
+                            style={{
+                              backgroundColor: selected ? c.primary : c.background,
+                              color: selected ? "#fff" : c.textSecondary,
+                              borderColor: selected ? c.primary : c.border,
+                            }}>
+                            {tag}
+                          </button>
+                        );
+                      })
+                  }
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-black uppercase tracking-wider mb-1.5" style={{ color: c.textSecondary }}>Remark</label>
+                <input value={addLeadForm.remark} onChange={e => setAddLeadForm(f => ({ ...f, remark: e.target.value }))}
+                  placeholder="e.g. Initial discussion done" className="w-full p-3 rounded-xl border text-sm outline-none" style={inputSt} />
+              </div>
+
+              <div className="flex gap-3 pt-2 border-t" style={{ borderColor: c.border }}>
+                <button type="button" onClick={() => setAddLeadModal(false)} className="flex-1 py-2.5 rounded-xl text-sm font-bold border" style={{ borderColor: c.border, color: c.textSecondary }}>Cancel</button>
+                <button type="submit" disabled={addingLead || !addLeadForm.name.trim() || !addLeadForm.phone.trim()}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold disabled:opacity-60 transition-all hover:opacity-90"
+                  style={{ backgroundColor: c.primary, color: "#fff" }}>
+                  {addingLead ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Adding…</> : <><Plus size={14} /> Add Lead</>}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
