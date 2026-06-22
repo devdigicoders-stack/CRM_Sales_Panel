@@ -2,13 +2,14 @@ import { lazy } from "react";
 import {
   FaTachometerAlt, FaIdCard, FaStar,
   FaUserCheck, FaTruck, FaCheckCircle, FaPhoneSlash,
-  FaComments, FaChartLine, FaCalendarAlt, FaBell
+  FaComments, FaChartLine, FaCalendarAlt, FaBell, FaUserTimes
 } from "react-icons/fa";
 
 const Dashboard             = lazy(() => import("../pages/Dashboard"));
 const AssignedLeads         = lazy(() => import("../pages/AssignedLeads"));
 const InterestedLeads       = lazy(() => import("../pages/InterestedLeads"));
 const MissedFollowups       = lazy(() => import("../pages/MissedFollowups"));
+const RejectedLeads         = lazy(() => import("../pages/RejectedLeads"));
 const LeadDetails           = lazy(() => import("../pages/LeadDetails"));
 const SaleConfirm           = lazy(() => import("../pages/SaleConfirm"));
 const DeliveryManagement    = lazy(() => import("../pages/DeliveryManagement"));
@@ -23,6 +24,7 @@ const routes = [
   { path: "/assigned-leads",     component: AssignedLeads,      name: "Assigned Leads",     icon: FaUserCheck     },
   { path: "/interested-leads",   component: InterestedLeads,    name: "Interested Leads",   icon: FaStar          },
   { path: "/missed-followups",   component: MissedFollowups,    name: "Missed Follow-ups",  icon: FaPhoneSlash    },
+  { path: "/rejected-leads",     component: RejectedLeads,      name: "Rejected Leads",     icon: FaUserTimes     },
   { path: "/communications",     component: CommunicationHistory, name: "Communications",   icon: FaComments      },
   { path: "/meetings",           component: MeetingsManagement, name: "Meetings",           icon: FaCalendarAlt   },
   { path: "/notifications",      component: Notifications,      name: "Notifications",      icon: FaBell          },
@@ -34,3 +36,4 @@ const routes = [
 ];
 
 export default routes;
+
