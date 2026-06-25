@@ -5,12 +5,14 @@ import HighchartsReact from "highcharts-react-official";
 import {
   Users, UserCheck, Clock, PhoneOff,
   TrendingUp, RefreshCw, AlertCircle,
-  BarChart2, PieChart, Activity
+  BarChart2, PieChart, Activity, ArrowRight
 } from "lucide-react";
 import { useTheme } from "../context/ThemeContext";
+import { useNavigate } from "react-router-dom";
 
 export default function Dashboard() {
   const { themeColors: c } = useTheme();
+  const navigate = useNavigate();
   const [stats, setStats]     = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(null);
@@ -75,6 +77,7 @@ export default function Dashboard() {
       color: "#3b82f6",
       bg: "#eff6ff",
       border: "#bfdbfe",
+      link: "/assigned-leads",
     },
     {
       title: "Assigned Leads",
@@ -83,6 +86,7 @@ export default function Dashboard() {
       color: "#10b981",
       bg: "#ecfdf5",
       border: "#6ee7b7",
+      link: "/assigned-leads",
     },
     {
       title: "Today's Reminders",
@@ -91,6 +95,7 @@ export default function Dashboard() {
       color: "#f59e0b",
       bg: "#fffbeb",
       border: "#fcd34d",
+      link: "/meetings",
     },
     {
       title: "Missed Follow-ups",
@@ -99,6 +104,7 @@ export default function Dashboard() {
       color: "#ef4444",
       bg: "#fff1f2",
       border: "#fca5a5",
+      link: "/missed-followups",
     },
   ];
 
@@ -209,9 +215,10 @@ export default function Dashboard() {
 
       {/* ══════════ STAT CARDS ══════════ */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-        {statCards.map(({ title, value, icon: Icon, color, bg, border }) => (
+        {statCards.map(({ title, value, icon: Icon, color, bg, border, link }) => (
           <div key={title}
-            className="relative overflow-hidden rounded-2xl border p-4 sm:p-5 flex items-center justify-between group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg"
+            onClick={() => link && navigate(link)}
+            className={`relative overflow-hidden rounded-2xl border p-4 sm:p-5 flex items-center justify-between group transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg ${link ? "cursor-pointer" : ""}`}
             style={{
               backgroundColor: isDark ? c.surface : bg,
               borderColor: isDark ? c.border : border,
@@ -220,15 +227,25 @@ export default function Dashboard() {
             <div className="absolute -right-4 -top-4 w-20 h-20 rounded-full opacity-10"
               style={{ backgroundColor: color }} />
 
-            <div className="z-10">
-              <p className="text-[11px] font-bold uppercase tracking-wider mb-1"
-                style={{ color: isDark ? c.textSecondary : color }}>
-                {title}
-              </p>
-              <p className="text-3xl sm:text-4xl font-black tracking-tight"
-                style={{ color: isDark ? c.text : color }}>
-                {value}
-              </p>
+            <div className="z-10 flex flex-col justify-between h-full">
+              <div>
+                <p className="text-[11px] font-bold uppercase tracking-wider mb-1"
+                  style={{ color: isDark ? c.textSecondary : color }}>
+                  {title}
+                </p>
+                <p className="text-3xl sm:text-4xl font-black tracking-tight"
+                  style={{ color: isDark ? c.text : color }}>
+                  {value}
+                </p>
+              </div>
+              
+              {link && (
+                <div className="mt-3 flex items-center gap-1 text-[11px] font-black uppercase tracking-wider transition-all duration-200"
+                  style={{ color: isDark ? c.primary : color }}>
+                  <span>View</span>
+                  <ArrowRight size={12} strokeWidth={3} className="transition-transform duration-200 group-hover:translate-x-1" />
+                </div>
+              )}
             </div>
 
             <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 z-10
