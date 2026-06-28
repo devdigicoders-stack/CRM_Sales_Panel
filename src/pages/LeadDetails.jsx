@@ -231,6 +231,14 @@ export default function LeadDetails() {
                 </a>
               </div>
             )}
+            {lead.invoiceUrl && (
+              <div className="p-3 rounded-xl border" style={{ backgroundColor: c.background, borderColor: c.border }}>
+                <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: c.textSecondary }}>Invoice Document</p>
+                <a href={`${import.meta.env.VITE_API_BASE_URL.replace('/api/v1', '')}${lead.invoiceUrl}`} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-indigo-650 hover:underline flex items-center gap-1">
+                  View Uploaded Invoice <ExternalLink size={12} className="inline-block" />
+                </a>
+              </div>
+            )}
           </div>
 
           {/* Assigned To + Tags + Actions */}
