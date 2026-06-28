@@ -22,6 +22,9 @@ export default function SaleConfirm() {
     dealValue:      "",
     accountRemarks: "",
     transferToAccounts: true,
+    amountPaid:     "",
+    pendingAmount:  "",
+    paymentScreenshot: null,
   });
 
   useEffect(() => {
@@ -29,11 +32,16 @@ export default function SaleConfirm() {
       .then(res => {
         const l = res?.data?.lead;
         setLead(l);
+        const deal = l?.dealValue || 0;
+        const paid = l?.amountPaid || 0;
+        const pending = Math.max(0, deal - paid);
         setForm(f => ({
           ...f,
           productDetails: l?.productDetails || "",
-          dealValue:      l?.dealValue || "",
+          dealValue:      deal || "",
           accountRemarks: l?.accountRemarks || "",
+          amountPaid:     paid || "",
+          pendingAmount:  pending || "",
         }));
       })
       .catch(() => toast.error("Failed to load lead."))
@@ -44,14 +52,22 @@ export default function SaleConfirm() {
     e.preventDefault();
     if (!form.productDetails.trim()) return toast.error("Product details required.");
     if (!form.dealValue || isNaN(Number(form.dealValue))) return toast.error("Enter valid deal value.");
+    if (form.amountPaid === "" || isNaN(Number(form.amountPaid))) return toast.error("Amount paid required.");
+    if (form.pendingAmount === "" || isNaN(Number(form.pendingAmount))) return toast.error("Pending amount required.");
+    if (!form.paymentScreenshot) return toast.error("Payment screenshot is required.");
+
     setSaving(true);
     try {
-      await leadAPI.confirmSale(id, {
-        productDetails:     form.productDetails,
-        dealValue:          Number(form.dealValue),
-        accountRemarks:     form.accountRemarks,
-        transferToAccounts: form.transferToAccounts,
-      });
+      const formData = new FormData();
+      formData.append("productDetails", form.productDetails);
+      formData.append("dealValue", Number(form.dealValue));
+      formData.append("amountPaid", Number(form.amountPaid));
+      formData.append("pendingAmount", Number(form.pendingAmount));
+      formData.append("accountRemarks", form.accountRemarks);
+      formData.append("transferToAccounts", form.transferToAccounts);
+      formData.append("paymentScreenshot", form.paymentScreenshot);
+
+      await leadAPI.confirmSale(id, formData);
       toast.success("Sale confirmed & transferred to Accounts!");
       navigate(`/lead-details/${id}`);
     } catch (err) {
@@ -124,10 +140,84 @@ export default function SaleConfirm() {
             <div className="relative">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 font-black" style={{ color: c.textSecondary }}>₹</span>
               <input type="number" value={form.dealValue}
-                onChange={e => setForm(f => ({ ...f, dealValue: e.target.value }))}
+                onChange={e => {
+                  const val = e.target.value;
+                  setForm(f => {
+                    const deal = Number(val) || 0;
+                    const paid = Number(f.amountPaid) || 0;
+                    return {
+                      ...f,
+                      dealValue: val,
+                      pendingAmount: Math.max(0, deal - paid).toString()
+                    };
+                  });
+                }}
                 placeholder="e.g. 25000"
                 className="w-full pl-7 pr-4 py-3 rounded-xl border text-sm outline-none"
                 style={inputSt} required min={0} />
+            </div>
+          </div>
+
+          {/* Amount Paid */}
+          <div>
+            <label className="text-[11px] font-black uppercase tracking-wider block mb-2" style={{ color: c.textSecondary }}>
+              <IndianRupee size={11} className="inline mr-1" /> Amount Paid (₹) *
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 font-black" style={{ color: c.textSecondary }}>₹</span>
+              <input type="number" value={form.amountPaid}
+                onChange={e => {
+                  const val = e.target.value;
+                  setForm(f => {
+                    const deal = Number(f.dealValue) || 0;
+                    const paid = Number(val) || 0;
+                    return {
+                      ...f,
+                      amountPaid: val,
+                      pendingAmount: Math.max(0, deal - paid).toString()
+                    };
+                  });
+                }}
+                placeholder="e.g. 10000"
+                className="w-full pl-7 pr-4 py-3 rounded-xl border text-sm outline-none"
+                style={inputSt} required min={0} />
+            </div>
+          </div>
+
+          {/* Pending Amount */}
+          <div>
+            <label className="text-[11px] font-black uppercase tracking-wider block mb-2" style={{ color: c.textSecondary }}>
+              <IndianRupee size={11} className="inline mr-1" /> Pending Amount (₹)
+            </label>
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 font-black" style={{ color: c.textSecondary }}>₹</span>
+              <input type="number" value={form.pendingAmount}
+                className="w-full pl-7 pr-4 py-3 rounded-xl border text-sm outline-none opacity-80 cursor-not-allowed"
+                style={{ ...inputSt, backgroundColor: isDark ? `${c.background}80` : "#f3f4f6" }} readOnly />
+            </div>
+          </div>
+
+          {/* Payment Screenshot */}
+          <div>
+            <label className="text-[11px] font-black uppercase tracking-wider block mb-2" style={{ color: c.textSecondary }}>
+              <FileText size={11} className="inline mr-1" /> Payment Screenshot / Receipt *
+            </label>
+            <div className="flex items-center gap-3">
+              <input type="file" accept="image/*,application/pdf" id="payment-screenshot-input"
+                onChange={e => {
+                  if (e.target.files && e.target.files[0]) {
+                    setForm(f => ({ ...f, paymentScreenshot: e.target.files[0] }));
+                  }
+                }}
+                className="hidden" />
+              <label htmlFor="payment-screenshot-input"
+                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border text-xs font-bold cursor-pointer hover:opacity-90 transition-all"
+                style={{ backgroundColor: c.surface, borderColor: c.border, color: c.text }}>
+                <FileText size={14} /> Choose File
+              </label>
+              <span className="text-xs" style={{ color: c.textSecondary }}>
+                {form.paymentScreenshot ? form.paymentScreenshot.name : "No file chosen (Mandatory)"}
+              </span>
             </div>
           </div>
 

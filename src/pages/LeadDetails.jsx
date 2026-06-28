@@ -6,7 +6,7 @@ import {
   ArrowLeft, Phone, Mail, MessageSquare,
   Save, RefreshCw, AlertCircle, CheckCircle2,
   User, Tag, IndianRupee, Send, Wrench,
-  PhoneCall, Clock
+  PhoneCall, Clock, ExternalLink
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -208,6 +208,8 @@ export default function LeadDetails() {
                 { label: "Delivery",      value: lead.deliveryStatus },
                 { label: "Installation",  value: lead.installationStatus },
                 { label: "Deal Value",    value: `₹${lead.dealValue?.toLocaleString("en-IN") || 0}` },
+                { label: "Amount Paid",   value: `₹${lead.amountPaid?.toLocaleString("en-IN") || 0}` },
+                { label: "Pending Amount",value: `₹${lead.pendingAmount?.toLocaleString("en-IN") || 0}` },
               ].map(({ label, value }) => (
                 <div key={label}>
                   <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: c.textSecondary }}>{label}</p>
@@ -219,6 +221,14 @@ export default function LeadDetails() {
               <div className="p-3 rounded-xl border" style={{ backgroundColor: c.background, borderColor: c.border }}>
                 <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: c.textSecondary }}>Product Details</p>
                 <p className="text-sm font-semibold" style={{ color: c.text }}>{lead.productDetails}</p>
+              </div>
+            )}
+            {lead.paymentScreenshot && (
+              <div className="p-3 rounded-xl border" style={{ backgroundColor: c.background, borderColor: c.border }}>
+                <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: c.textSecondary }}>Payment Screenshot</p>
+                <a href={`${import.meta.env.VITE_API_BASE_URL.replace('/api/v1', '')}${lead.paymentScreenshot}`} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-blue-600 hover:underline flex items-center gap-1">
+                  View Payment Screenshot <ExternalLink size={12} className="inline-block" />
+                </a>
               </div>
             )}
           </div>
