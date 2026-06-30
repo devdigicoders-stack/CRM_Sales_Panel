@@ -305,7 +305,13 @@ export default function AssignedLeads() {
       l.name?.toLowerCase().includes(q) ||
       l.phone?.includes(search) ||
       l.email?.toLowerCase().includes(q);
-    const matchStatus = status === "all" || l.status === status;
+      
+    let effectiveStatus = l.status;
+    if (effectiveStatus === "assigned" && (!l.remarks || l.remarks.length === 0)) {
+      effectiveStatus = "new";
+    }
+
+    const matchStatus = status === "all" || effectiveStatus === status;
     return matchSearch && matchStatus;
   });
 
