@@ -343,7 +343,7 @@ export default function LeadDetails() {
                   <label className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: c.textSecondary }}>
                     Next Follow-up Date
                   </label>
-                  <input type="date" value={remarkFollowup} onChange={e => setRemarkFollowup(e.target.value)}
+                  <input type="datetime-local" value={remarkFollowup} onChange={e => setRemarkFollowup(e.target.value)}
                     className="w-full p-2.5 rounded-xl border text-sm outline-none"
                     style={inputSt} />
                 </div>

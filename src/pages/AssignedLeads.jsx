@@ -959,6 +959,7 @@ export default function AssignedLeads() {
                 <div>
                   <label className="block text-[11px] font-black uppercase tracking-wider mb-1.5" style={{ color: c.textSecondary }}>Phone *</label>
                   <input value={addLeadForm.phone} onChange={e => setAddLeadForm(f => ({ ...f, phone: e.target.value }))}
+                    type="tel" maxLength={10} pattern="[0-9]{10}"
                     required placeholder="10-digit number" className="w-full p-3 rounded-xl border text-sm outline-none" style={inputSt} />
                 </div>
               </div>
