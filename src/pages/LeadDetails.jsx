@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import WhatsAppChooserModal from '../components/WhatsAppChooserModal';
 import { useTheme } from "../context/ThemeContext";
 import { useParams, useNavigate } from "react-router-dom";
 import { leadAPI } from "../api/lead";
@@ -10,9 +11,11 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-const STATUS_OPTS = ["new", "assigned", "interested", "in_process", "converted", "closed", "not_interested"];
+const STATUS_OPTS = ["new", "assigned", "interested", "in_process", "converted", "closed", "not_interested", "call_done"];
 
 export default function LeadDetails() {
+  const [waModalLead, setWaModalLead] = useState(null);
+
   const { themeColors: c } = useTheme();
   const { id } = useParams();
   const navigate = useNavigate();
@@ -100,6 +103,7 @@ export default function LeadDetails() {
     converted:      { color: "#15803d", bg: "#f0fdf4", border: "#bbf7d0" },
     closed:         { color: "#374151", bg: "#f9fafb", border: "#e5e7eb" },
     not_interested: { color: "#991b1b", bg: "#fef2f2", border: "#fecaca" },
+    call_done:      { color: "#0369a1", bg: "#e0f2fe", border: "#bae6fd" },
     new:            { color: "#6d28d9", bg: "#f5f3ff", border: "#ddd6fe" },
   };
 
@@ -228,7 +232,7 @@ export default function LeadDetails() {
                 <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: c.textSecondary }}>Payment Screenshot</p>
                 <a href={`${import.meta.env.VITE_API_BASE_URL.replace('/api/v1', '')}${lead.paymentScreenshot}`} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-blue-600 hover:underline flex items-center gap-1">
                   View Payment Screenshot <ExternalLink size={12} className="inline-block" />
-                </a>
+                </button>
               </div>
             )}
             {lead.invoiceUrl && (
@@ -288,11 +292,11 @@ export default function LeadDetails() {
                   <PhoneCall size={14} /> Call
                 </a>
                 {lead.integrations?.whatsappLink && (
-                  <a href={lead.integrations.whatsappLink} target="_blank" rel="noreferrer"
+                  <button onClick={() => setWaModalLead(lead)}
                     className="flex items-center justify-center gap-2 p-3 rounded-xl border font-semibold text-xs transition-all hover:shadow-md active:scale-95"
                     style={{ backgroundColor: "#f0fdf4", borderColor: "#bbf7d0", color: "#16a34a" }}>
                     <MessageSquare size={14} /> WhatsApp
-                  </a>
+                  </button>
                 )}
               </div>
 
@@ -479,6 +483,7 @@ export default function LeadDetails() {
           </div>
         </div>
       )}
+      <WhatsAppChooserModal link={waModalLead?.integrations?.whatsappLink} phone={waModalLead?.phone} isOpen={!!waModalLead} onClose={() => setWaModalLead(null)} />
     </div>
   );
 }

@@ -184,7 +184,7 @@ export default function Dashboard() {
   /* ── Status + Priority bar helpers ── */
   const statusColors = {
     new: "#6366f1", assigned: "#3b82f6", interested: "#10b981",
-    not_interested: "#ef4444", converted: "#059669", closed: "#6b7280", in_process: "#f59e0b",
+    not_interested: "#ef4444", converted: "#059669", closed: "#6b7280", in_process: "#f59e0b", call_done: "#0ea5e9",
   };
   const priorityColors = { high: "#ef4444", medium: "#f59e0b", low: "#10b981" };
 

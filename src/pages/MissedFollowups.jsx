@@ -25,6 +25,7 @@ const statusConfig = {
   converted:      { bg: "#f0fdf4", color: "#15803d", border: "#bbf7d0" },
   closed:         { bg: "#f9fafb", color: "#374151", border: "#e5e7eb" },
   not_interested: { bg: "#fef2f2", color: "#991b1b", border: "#fecaca" },
+  call_done:      { bg: "#e0f2fe", color: "#0369a1", border: "#bae6fd" },
 };
 
 const StatusBadge = ({ status }) => {

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import WhatsAppChooserModal from '../components/WhatsAppChooserModal';
 import { useTheme } from "../context/ThemeContext";
 import { leadAPI } from "../api/lead";
 import { useNavigate } from "react-router-dom";
@@ -11,7 +12,7 @@ import {
 import { toast } from "sonner";
 
 const ITEMS = 10;
-const STATUS_OPTS = ["all","new","assigned","interested","in_process","converted","closed","not_interested"];
+const STATUS_OPTS = ["all","new","assigned","interested","in_process","converted","closed","not_interested","call_done"];
 
 const priorityConfig = {
   high:   { bg: "#fee2e2", color: "#b91c1c", border: "#fca5a5" },
@@ -26,9 +27,12 @@ const statusConfig = {
   converted:      { bg: "#f0fdf4", color: "#15803d", border: "#bbf7d0" },
   closed:         { bg: "#f9fafb", color: "#374151", border: "#e5e7eb" },
   not_interested: { bg: "#fef2f2", color: "#991b1b", border: "#fecaca" },
+  call_done:      { bg: "#e0f2fe", color: "#0369a1", border: "#bae6fd" },
 };
 
 const StatusBadge = ({ status }) => {
+  const [waModalLead, setWaModalLead] = useState(null);
+
   const cfg = statusConfig[status?.toLowerCase()] || statusConfig.new;
   return (
     <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase border whitespace-nowrap"
@@ -60,6 +64,7 @@ export default function AssignedLeads() {
   const [search, setSearch]   = useState("");
   const [status, setStatus]   = useState("all");
   const [view, setView]       = useState("table");
+  const [callTab, setCallTab] = useState("pending");
 
   const [remarkModal, setRemarkModal]   = useState(false);
   const [remarkLead, setRemarkLead]     = useState(null);
@@ -342,7 +347,11 @@ export default function AssignedLeads() {
     }
 
     const matchStatus = status === "all" || effectiveStatus === status;
-    return matchSearch && matchStatus;
+    
+    const isCallDone = l.status === "call_done";
+    const matchTab = callTab === "done" ? isCallDone : !isCallDone;
+
+    return matchSearch && matchStatus && matchTab;
   });
 
   const totalPages = Math.ceil(filtered.length / ITEMS) || 1;
@@ -410,6 +419,27 @@ export default function AssignedLeads() {
             <p className="text-3xl font-black" style={{ color: isDark ? c.text : color }}>{value}</p>
           </div>
         ))}
+      </div>
+
+      <div className="flex gap-3 mb-2">
+        <button onClick={() => { setCallTab("pending"); setPage(1); }}
+          className="px-5 py-2.5 rounded-xl text-sm font-bold transition-all border"
+          style={{
+            backgroundColor: callTab === "pending" ? c.primary : "transparent",
+            color: callTab === "pending" ? "#fff" : c.textSecondary,
+            borderColor: callTab === "pending" ? c.primary : c.border
+          }}>
+          Pending Calls ({leads.filter(l => l.status !== "call_done").length})
+        </button>
+        <button onClick={() => { setCallTab("done"); setPage(1); }}
+          className="px-5 py-2.5 rounded-xl text-sm font-bold transition-all border"
+          style={{
+            backgroundColor: callTab === "done" ? c.primary : "transparent",
+            color: callTab === "done" ? "#fff" : c.textSecondary,
+            borderColor: callTab === "done" ? c.primary : c.border
+          }}>
+          Call Done ({leads.filter(l => l.status === "call_done").length})
+        </button>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-3 p-4 rounded-2xl border"
@@ -483,7 +513,7 @@ export default function AssignedLeads() {
                         className="flex items-center gap-1.5 text-sm font-semibold hover:underline"
                         style={{ color: c.text }}>
                         <Phone size={12} color="#10b981" /> {lead.phone || "—"}
-                      </a>
+                      </button>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <p className="text-sm truncate max-w-[150px]" style={{ color: c.textSecondary }}>{lead.email || "—"}</p>
@@ -573,12 +603,12 @@ export default function AssignedLeads() {
                           <PhoneCall size={13} />
                         </a>
                         {lead.integrations?.whatsappLink && (
-                          <a href={lead.integrations.whatsappLink} target="_blank" rel="noreferrer"
+                          <button onClick={() => setWaModalLead(lead)}
                             className="p-2 rounded-lg border transition-all hover:scale-105"
                             style={{ backgroundColor: "#f0fdf4", borderColor: "#bbf7d0", color: "#16a34a" }}
                             title="WhatsApp">
                             <MessageCircle size={13} />
-                          </a>
+                          </button>
                         )}
                       </div>
                     </td>
@@ -811,6 +841,7 @@ export default function AssignedLeads() {
                   <option value="converted">Converted</option>
                   <option value="closed">Closed</option>
                   <option value="not_interested">Not Interested</option>
+                  <option value="call_done">Call Done</option>
                 </select>
               </div>
 
@@ -1048,6 +1079,7 @@ export default function AssignedLeads() {
           </div>
         </div>
       )}
+      <WhatsAppChooserModal link={waModalLead?.integrations?.whatsappLink} phone={waModalLead?.phone} isOpen={!!waModalLead} onClose={() => setWaModalLead(null)} />
     </div>
   );
 }
@@ -1057,5 +1089,6 @@ function PageBtn({ children, onClick, disabled, c }) {
     <button onClick={onClick} disabled={disabled} className="w-8 h-8 rounded-lg flex items-center justify-center border transition-all disabled:opacity-40" style={{ backgroundColor: c.background, borderColor: c.border, color: c.text }}>
       {children}
     </button>
+      
   );
 }

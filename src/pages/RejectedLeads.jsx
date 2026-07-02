@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import WhatsAppChooserModal from '../components/WhatsAppChooserModal';
 import { useTheme } from "../context/ThemeContext";
 import { leadAPI } from "../api/lead";
 import { useNavigate } from "react-router-dom";
@@ -25,10 +26,13 @@ const statusConfig = {
   converted:      { bg: "#f0fdf4", color: "#15803d", border: "#bbf7d0" },
   closed:         { bg: "#f9fafb", color: "#374151", border: "#e5e7eb" },
   not_interested: { bg: "#fef2f2", color: "#991b1b", border: "#fecaca" },
+  call_done:      { bg: "#e0f2fe", color: "#0369a1", border: "#bae6fd" },
   rejected:       { bg: "#fef2f2", color: "#991b1b", border: "#fecaca" },
 };
 
 const StatusBadge = ({ status }) => {
+  const [waModalLead, setWaModalLead] = useState(null);
+
   const cfg = statusConfig[status?.toLowerCase()] || statusConfig.new;
   return (
     <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase border whitespace-nowrap"
@@ -266,7 +270,7 @@ export default function RejectedLeads() {
                           className="flex items-center gap-1.5 text-sm font-semibold hover:underline"
                           style={{ color: c.text }}>
                           <Phone size={12} color="#10b981" /> {lead.phone || "—"}
-                        </a>
+                        </button>
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap">
                         <p className="text-xs truncate max-w-[140px]" style={{ color: c.textSecondary }}>{lead.email || "—"}</p>
@@ -320,12 +324,12 @@ export default function RejectedLeads() {
                             <PhoneCall size={14} />
                           </a>
                           {lead.integrations?.whatsappLink && (
-                            <a href={lead.integrations.whatsappLink} target="_blank" rel="noreferrer"
+                            <button onClick={() => setWaModalLead(lead)}
                               className="p-2 rounded-lg border transition-all hover:scale-105"
                               style={{ backgroundColor: "#f0fdf4", borderColor: "#bbf7d0", color: "#16a34a" }}
                               title="WhatsApp">
                               <MessageCircle size={14} />
-                            </a>
+                            </button>
                           )}
                         </div>
                       </td>
@@ -504,6 +508,7 @@ export default function RejectedLeads() {
           </div>
         </div>
       )}
+      <WhatsAppChooserModal link={waModalLead?.integrations?.whatsappLink} phone={waModalLead?.phone} isOpen={!!waModalLead} onClose={() => setWaModalLead(null)} />
     </div>
   );
 }
@@ -515,5 +520,6 @@ function PageBtn({ children, onClick, disabled, c }) {
       style={{ backgroundColor: c.background, borderColor: c.border, color: c.text }}>
       {children}
     </button>
+      
   );
 }
