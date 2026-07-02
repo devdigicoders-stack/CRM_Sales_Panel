@@ -31,8 +31,6 @@ const statusConfig = {
 };
 
 const StatusBadge = ({ status }) => {
-  const [waModalLead, setWaModalLead] = useState(null);
-
   const cfg = statusConfig[status?.toLowerCase()] || statusConfig.new;
   return (
     <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase border whitespace-nowrap"
@@ -63,6 +61,7 @@ export default function RejectedLeads() {
   const [page, setPage]       = useState(1);
   const [search, setSearch]   = useState("");
   const [view, setView]       = useState("table");
+  const [waModalLead, setWaModalLead] = useState(null);
 
   // Status Modal
   const [statusModal, setStatusModal] = useState(false);

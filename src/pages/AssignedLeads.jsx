@@ -31,8 +31,6 @@ const statusConfig = {
 };
 
 const StatusBadge = ({ status }) => {
-  const [waModalLead, setWaModalLead] = useState(null);
-
   const cfg = statusConfig[status?.toLowerCase()] || statusConfig.new;
   return (
     <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase border whitespace-nowrap"
@@ -65,6 +63,7 @@ export default function AssignedLeads() {
   const [status, setStatus]   = useState("all");
   const [view, setView]       = useState("table");
   const [callTab, setCallTab] = useState("pending");
+  const [waModalLead, setWaModalLead] = useState(null);
 
   const [remarkModal, setRemarkModal]   = useState(false);
   const [remarkLead, setRemarkLead]     = useState(null);

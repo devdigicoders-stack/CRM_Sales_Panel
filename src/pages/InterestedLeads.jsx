@@ -31,8 +31,6 @@ const statusConfig = {
 };
 
 function StatusBadge({ status }) {
-  const [waModalLead, setWaModalLead] = useState(null);
-
   const cfg = statusConfig[status?.toLowerCase()] || statusConfig.new;
   return (
     <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase border whitespace-nowrap"
@@ -62,8 +60,8 @@ export default function InterestedLeads() {
   const [search, setSearch]           = useState("");
   const [view, setView]               = useState("table");
   const [modalOpen, setModalOpen]     = useState(false);
-  const [modalLead, setModalLead]     = useState(null);
   const [modalLoading, setModalLoading] = useState(false);
+  const [waModalLead, setWaModalLead] = useState(null);
 
   const [statusModal, setStatusModal] = useState(false);
   const [statusLead, setStatusLead]   = useState(null);
