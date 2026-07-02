@@ -6,7 +6,7 @@ import {
   Users, Phone, Mail, RefreshCw, AlertCircle,
   ChevronLeft, ChevronRight, Eye, UserCheck,
   Search, LayoutGrid, Table2, TrendingUp,
-  PhoneCall, MessageCircle, Tag, X, FileText, Send, Calendar, Upload, ArrowRight, Truck, Plus
+  PhoneCall, MessageCircle, Tag, X, FileText, Send, Calendar, Upload, ArrowRight, Truck, Plus, Star
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -299,6 +299,36 @@ export default function AssignedLeads() {
     }
   };
 
+  const [priorityModal, setPriorityModal]       = useState(false);
+  const [priorityLead, setPriorityLead]         = useState(null);
+  const [newPriority, setNewPriority]           = useState("");
+  const [updatingPriority, setUpdatingPriority] = useState(false);
+
+  const openPriorityModal = (lead, e) => {
+    e?.stopPropagation();
+    setPriorityLead(lead);
+    setNewPriority(lead.priority || "medium");
+    setPriorityModal(true);
+  };
+
+  const handleUpdatePriority = async (e) => {
+    e.preventDefault();
+    if (!newPriority || newPriority === priorityLead.priority) {
+      return toast.error("Please select a different priority.");
+    }
+    setUpdatingPriority(true);
+    try {
+      await leadAPI.updateLead(priorityLead._id, { priority: newPriority });
+      toast.success("Lead priority updated successfully!");
+      setPriorityModal(false);
+      fetchLeads();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to update priority.");
+    } finally {
+      setUpdatingPriority(false);
+    }
+  };
+
   const filtered = leads.filter(l => {
     const q = search.toLowerCase();
     const matchSearch = !search ||
@@ -506,6 +536,12 @@ export default function AssignedLeads() {
                           title="Update Status">
                           <Tag size={13} />
                         </button>
+                        <button onClick={e => openPriorityModal(lead, e)}
+                          className="p-2 rounded-lg border transition-all hover:scale-105"
+                          style={{ backgroundColor: "#fef3c7", borderColor: "#fcd34d", color: "#b45309" }}
+                          title="Update Priority">
+                          <Star size={13} />
+                        </button>
                         <button onClick={e => openRemarkModal(lead, e)}
                           className="p-2 rounded-lg border transition-all hover:scale-105"
                           style={{ backgroundColor: "#fffbeb", borderColor: "#fcd34d", color: "#b45309" }}
@@ -594,24 +630,29 @@ export default function AssignedLeads() {
                       </div>
                     )}
                   </div>
-                  <div className="flex gap-2" onClick={e => e.stopPropagation()}>
+                  <div className="flex flex-wrap gap-2" onClick={e => e.stopPropagation()}>
                     <button onClick={() => navigate(`/lead-details/${lead._id}`)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border text-xs font-bold hover:opacity-80"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border text-xs font-bold hover:opacity-80 min-w-[70px]"
                       style={{ backgroundColor: `${c.primary}12`, borderColor: `${c.primary}30`, color: c.primary }}>
                       <Eye size={12} /> View
                     </button>
                     <button onClick={e => openStatusModal(lead, e)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border text-xs font-bold hover:opacity-80"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border text-xs font-bold hover:opacity-80 min-w-[70px]"
                       style={{ backgroundColor: "#eef2ff", borderColor: "#c7d2fe", color: "#4338ca" }}>
                       <Tag size={12} /> Status
                     </button>
+                    <button onClick={e => openPriorityModal(lead, e)}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border text-xs font-bold hover:opacity-80 min-w-[70px]"
+                      style={{ backgroundColor: "#fef3c7", borderColor: "#fcd34d", color: "#b45309" }}>
+                      <Star size={12} /> Priority
+                    </button>
                     <button onClick={e => openRemarkModal(lead, e)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border text-xs font-bold hover:opacity-80"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border text-xs font-bold hover:opacity-80 min-w-[70px]"
                       style={{ backgroundColor: "#fffbeb", borderColor: "#fcd34d", color: "#b45309" }}>
                       <FileText size={12} /> Remark
                     </button>
                     <button onClick={e => openMeetingModal(lead, e)}
-                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border text-xs font-bold hover:opacity-80"
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border text-xs font-bold hover:opacity-80 min-w-[70px]"
                       style={{ backgroundColor: "#fef3c7", borderColor: "#fed7aa", color: "#b45309" }}>
                       <Calendar size={12} /> Meeting
                     </button>
@@ -648,7 +689,52 @@ export default function AssignedLeads() {
         </div>
       )}
 
-      {/* STATUS, REMARK, DOC, TRANSFER MODALS... (keeping all existing modals) */}
+      {/* STATUS, PRIORITY, REMARK, DOC, TRANSFER MODALS... */}
+      {priorityModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={e => e.target === e.currentTarget && setPriorityModal(false)}>
+          <div className="w-full max-w-lg rounded-3xl shadow-2xl overflow-hidden" style={{ backgroundColor: c.surface }}>
+            <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: c.border, backgroundColor: isDark ? `${c.background}99` : `${c.background}70` }}>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: "#fef3c7", color: "#b45309" }}>
+                  <Star size={16} />
+                </div>
+                <div>
+                  <h3 className="font-black text-base" style={{ color: c.text }}>Update Lead Priority</h3>
+                  <p className="text-xs" style={{ color: c.textSecondary }}>{priorityLead?.name} · {priorityLead?.phone}</p>
+                </div>
+              </div>
+              <button onClick={() => setPriorityModal(false)} className="w-8 h-8 rounded-full flex items-center justify-center" style={{ backgroundColor: "#fee2e2", color: "#dc2626" }}><X size={15} /></button>
+            </div>
+
+            <form onSubmit={handleUpdatePriority} className="p-6 space-y-4">
+              <div>
+                <label className="block text-[11px] font-black uppercase tracking-wider mb-3" style={{ color: c.textSecondary }}>Select New Priority *</label>
+                <div className="grid grid-cols-3 gap-3">
+                  {Object.keys(priorityConfig).map(p => {
+                    const cfg = priorityConfig[p];
+                    const isSelected = newPriority === p;
+                    return (
+                      <button key={p} type="button" onClick={() => setNewPriority(p)} className="flex items-center justify-center gap-2 p-3 rounded-xl border transition-all"
+                        style={{ backgroundColor: isSelected ? (isDark ? `${cfg.color}20` : cfg.bg) : c.background, borderColor: isSelected ? cfg.color : c.border, color: isSelected ? cfg.color : c.text, boxShadow: isSelected ? `0 0 0 2px ${cfg.color}25` : "none" }}>
+                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: isSelected ? cfg.color : c.border }} />
+                        <span className="text-xs font-bold">{p.toUpperCase()}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="flex gap-3 pt-2 border-t" style={{ borderColor: c.border }}>
+                <button type="button" onClick={() => setPriorityModal(false)} className="flex-1 py-2.5 rounded-xl text-sm font-bold border" style={{ borderColor: c.border, color: c.textSecondary }}>Cancel</button>
+                <button type="submit" disabled={updatingPriority || !newPriority} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold disabled:opacity-60 transition-all hover:opacity-90" style={{ backgroundColor: "#b45309", color: "#fff" }}>
+                  {updatingPriority ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Updating…</> : <><Star size={14} /> Update Priority</>}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {statusModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
           onClick={e => e.target === e.currentTarget && setStatusModal(false)}>
