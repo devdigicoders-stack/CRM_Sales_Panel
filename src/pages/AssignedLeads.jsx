@@ -513,7 +513,7 @@ export default function AssignedLeads() {
                         className="flex items-center gap-1.5 text-sm font-semibold hover:underline"
                         style={{ color: c.text }}>
                         <Phone size={12} color="#10b981" /> {lead.phone || "—"}
-                      </button>
+                      </a>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <p className="text-sm truncate max-w-[150px]" style={{ color: c.textSecondary }}>{lead.email || "—"}</p>
