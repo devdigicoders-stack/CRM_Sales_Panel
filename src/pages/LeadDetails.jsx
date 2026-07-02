@@ -232,7 +232,7 @@ export default function LeadDetails() {
                 <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: c.textSecondary }}>Payment Screenshot</p>
                 <a href={`${import.meta.env.VITE_API_BASE_URL.replace('/api/v1', '')}${lead.paymentScreenshot}`} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-blue-600 hover:underline flex items-center gap-1">
                   View Payment Screenshot <ExternalLink size={12} className="inline-block" />
-                </button>
+                </a>
               </div>
             )}
             {lead.invoiceUrl && (
