@@ -61,6 +61,7 @@ export default function AssignedLeads() {
   const [page, setPage]       = useState(1);
   const [search, setSearch]   = useState("");
   const [status, setStatus]   = useState("all");
+  const [dateFilter, setDateFilter]             = useState("");
   const [view, setView]       = useState("table");
   const [callTab, setCallTab] = useState("pending");
   const [waModalLead, setWaModalLead] = useState(null);
@@ -359,8 +360,9 @@ export default function AssignedLeads() {
     const matchStatus = status === "all" || effectiveStatus === status;
     
     const matchTab = callTab === "done" ? !!l.isCallDone : !l.isCallDone;
+    const matchDate = !dateFilter || new Date(l.createdAt).toISOString().split('T')[0] === dateFilter;
 
-    return matchSearch && matchStatus && matchTab;
+    return matchSearch && matchStatus && matchTab && matchDate;
   });
 
   const totalPages = Math.ceil(filtered.length / ITEMS) || 1;
@@ -467,6 +469,13 @@ export default function AssignedLeads() {
             <option key={s} value={s}>{s === "all" ? "All Status" : s.replace("_", " ").toUpperCase()}</option>
           ))}
         </select>
+        <input 
+          type="date"
+          value={dateFilter}
+          onChange={e => { setDateFilter(e.target.value); setPage(1); }}
+          className="px-4 py-2.5 rounded-xl border text-sm font-semibold outline-none w-full sm:w-auto min-w-[140px]"
+          style={{ ...inputSt, cursor: "pointer" }}
+        />
         <div className="flex gap-1 p-1 rounded-xl border" style={{ backgroundColor: c.background, borderColor: c.border }}>
           {[["table", "Table", Table2], ["card", "Cards", LayoutGrid]].map(([v, label, Icon]) => (
             <button key={v} onClick={() => setView(v)}
