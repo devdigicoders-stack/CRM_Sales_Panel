@@ -87,8 +87,8 @@ export default function LeadDetails() {
 
   const handleMarkCallDone = async () => {
     try {
-      await leadAPI.updateLead(id, { status: "call_done" });
-      setLead(prev => ({ ...prev, status: "call_done" }));
+      await leadAPI.updateLead(id, { isCallDone: true });
+      setLead(prev => ({ ...prev, isCallDone: true }));
       toast.success("Lead marked as call done!");
     } catch {
       toast.error("Failed to mark call done.");

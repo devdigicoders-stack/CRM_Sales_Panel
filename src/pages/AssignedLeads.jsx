@@ -306,7 +306,7 @@ export default function AssignedLeads() {
   const handleMarkCallDone = async (lead, e) => {
     e?.stopPropagation();
     try {
-      await leadAPI.updateLead(lead._id, { status: "call_done" });
+      await leadAPI.updateLead(lead._id, { isCallDone: true });
       toast.success("Lead marked as call done!");
       fetchLeads();
     } catch (err) {
@@ -358,8 +358,7 @@ export default function AssignedLeads() {
 
     const matchStatus = status === "all" || effectiveStatus === status;
     
-    const isCallDone = l.status === "call_done";
-    const matchTab = callTab === "done" ? isCallDone : !isCallDone;
+    const matchTab = callTab === "done" ? !!l.isCallDone : !l.isCallDone;
 
     return matchSearch && matchStatus && matchTab;
   });
@@ -439,16 +438,16 @@ export default function AssignedLeads() {
             color: callTab === "pending" ? "#fff" : c.textSecondary,
             borderColor: callTab === "pending" ? c.primary : c.border
           }}>
-          Pending Calls ({leads.filter(l => l.status !== "call_done").length})
+          Pending Calls ({leads.filter(l => !l.isCallDone).length})
         </button>
         <button onClick={() => { setCallTab("done"); setPage(1); }}
-          className="px-5 py-2.5 rounded-xl text-sm font-bold transition-all border"
+          className="px-6 py-2.5 rounded-xl text-sm font-bold transition-all border"
           style={{
             backgroundColor: callTab === "done" ? c.primary : "transparent",
             color: callTab === "done" ? "#fff" : c.textSecondary,
             borderColor: callTab === "done" ? c.primary : c.border
           }}>
-          Call Done ({leads.filter(l => l.status === "call_done").length})
+          Call Done ({leads.filter(l => l.isCallDone).length})
         </button>
       </div>
 
