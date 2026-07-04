@@ -26,6 +26,7 @@ export default function LeadDetails() {
 
   // Remark
   const [remarkNote, setRemarkNote]       = useState("");
+  const [meetingType, setMeetingType]     = useState("follow_up");
   const [remarkFollowup, setRemarkFollowup] = useState("");
   const [remarkTags, setRemarkTags] = useState("");
   const [addingRemark, setAddingRemark]   = useState(false);
@@ -60,15 +61,20 @@ export default function LeadDetails() {
         .map(tag => tag.trim())
         .filter(tag => tag.length > 0);
 
+      let finalNote = remarkNote;
+      if (meetingType === "visit") finalNote = `[Visit] ${finalNote}`;
+
       const res = await leadAPI.addRemark(id, {
-        note: remarkNote,
-        followUpDate: remarkFollowup || undefined,
+        note: finalNote,
+        followUpDate: meetingType === "follow_up" ? (remarkFollowup || undefined) : undefined,
+        visitDate: meetingType === "visit" ? (remarkFollowup || undefined) : undefined,
         tags: tagsArray.length > 0 ? tagsArray : undefined,
       });
       setLead(prev => ({ ...prev, remarks: res?.data?.lead?.remarks || prev.remarks, tags: res?.data?.lead?.tags || prev.tags }));
       setRemarkNote(""); 
       setRemarkFollowup("");
       setRemarkTags("");
+      setMeetingType("follow_up");
       toast.success("Remark added!");
     } catch { toast.error("Failed to add remark."); }
     finally { setAddingRemark(false); }
@@ -356,7 +362,18 @@ export default function LeadDetails() {
               <div className="flex flex-col sm:flex-row gap-3">
                 <div className="flex-1">
                   <label className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: c.textSecondary }}>
-                    Next Follow-up Date
+                    Schedule Type
+                  </label>
+                  <select value={meetingType} onChange={e => setMeetingType(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border text-sm outline-none bg-transparent appearance-none"
+                    style={{ ...inputSt, cursor: "pointer" }}>
+                    <option value="follow_up" className="bg-white dark:bg-zinc-800">Follow-up / Call / General</option>
+                    <option value="visit" className="bg-white dark:bg-zinc-800">Visit / Demo</option>
+                  </select>
+                </div>
+                <div className="flex-1">
+                  <label className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: c.textSecondary }}>
+                    {meetingType === 'visit' ? 'Visit/Demo Date' : 'Next Follow-up Date'}
                   </label>
                   <input type="datetime-local" value={remarkFollowup} onChange={e => setRemarkFollowup(e.target.value)}
                     className="w-full p-2.5 rounded-xl border text-sm outline-none"

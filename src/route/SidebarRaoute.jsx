@@ -17,6 +17,7 @@ const Profile               = lazy(() => import("../pages/Profile"));
 const CommunicationHistory  = lazy(() => import("../pages/CommunicationHistory"));
 const SalesAnalytics        = lazy(() => import("../pages/SalesAnalytics"));
 const MeetingsManagement    = lazy(() => import("../pages/MeetingsManagement"));
+const VisitsManagement      = lazy(() => import("../pages/VisitsManagement"));
 const Notifications         = lazy(() => import("../pages/Notifications"));
 
 const routes = [
@@ -27,6 +28,7 @@ const routes = [
   { path: "/rejected-leads",     component: RejectedLeads,      name: "Rejected Leads",     icon: FaUserTimes     },
   { path: "/communications",     component: CommunicationHistory, name: "Communications",   icon: FaComments      },
   { path: "/meetings",           component: MeetingsManagement, name: "Meetings",           icon: FaCalendarAlt   },
+  { path: "/visits",             component: VisitsManagement,   name: "Visits Calendar",    icon: FaCalendarAlt   },
   { path: "/notifications",      component: Notifications,      name: "Notifications",      icon: FaBell          },
   { path: "/sales-analytics",    component: SalesAnalytics,     name: "Sales Analytics",    icon: FaChartLine     },
   { path: "/sale-confirm/:id",   component: SaleConfirm,        name: "Sale Confirm",       icon: FaCheckCircle,  hide: true },
