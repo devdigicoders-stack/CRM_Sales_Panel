@@ -85,6 +85,16 @@ export default function LeadDetails() {
     finally { setUpdatingStatus(false); }
   };
 
+  const handleMarkCallDone = async () => {
+    try {
+      await leadAPI.updateLead(id, { status: "call_done" });
+      setLead(prev => ({ ...prev, status: "call_done" }));
+      toast.success("Lead marked as call done!");
+    } catch {
+      toast.error("Failed to mark call done.");
+    }
+  };
+
 
 
   const fmtDate = (d) => d ? new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
@@ -285,12 +295,17 @@ export default function LeadDetails() {
             <div className="rounded-2xl border p-5 space-y-3" style={{ backgroundColor: c.surface, borderColor: c.border }}>
               <p className="text-sm font-black uppercase tracking-wider" style={{ color: c.textSecondary }}>Actions</p>
               
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                 <a href={`tel:${lead.phone}`}
                   className="flex items-center justify-center gap-2 p-3 rounded-xl border font-semibold text-xs transition-all hover:shadow-md active:scale-95"
                   style={{ backgroundColor: "#eff6ff", borderColor: "#bfdbfe", color: "#2563eb" }}>
                   <PhoneCall size={14} /> Call
                 </a>
+                <button onClick={handleMarkCallDone}
+                  className="flex items-center justify-center gap-2 p-3 rounded-xl border font-semibold text-xs transition-all hover:shadow-md active:scale-95"
+                  style={{ backgroundColor: "#e0f2fe", borderColor: "#bae6fd", color: "#0369a1" }}>
+                  <CheckCircle2 size={14} /> Call Done
+                </button>
                 {lead.integrations?.whatsappLink && (
                   <button onClick={() => setWaModalLead(lead)}
                     className="flex items-center justify-center gap-2 p-3 rounded-xl border font-semibold text-xs transition-all hover:shadow-md active:scale-95"
@@ -451,7 +466,7 @@ export default function LeadDetails() {
                 <select value={newStatus} onChange={e => setNewStatus(e.target.value)}
                   className="w-full p-3 rounded-xl border text-sm font-semibold outline-none"
                   style={inputSt}>
-                  {STATUS_OPTS.map(s => (
+                  {STATUS_OPTS.filter(s => s !== "call_done").map(s => (
                     <option key={s} value={s}>{s.replace("_", " ").toUpperCase()}</option>
                   ))}
                 </select>

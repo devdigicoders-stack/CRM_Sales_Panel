@@ -7,7 +7,7 @@ import {
   Users, Phone, Mail, RefreshCw, AlertCircle,
   ChevronLeft, ChevronRight, Eye, UserCheck,
   Search, LayoutGrid, Table2, TrendingUp,
-  PhoneCall, MessageCircle, Tag, X, FileText, Send, Calendar, Upload, ArrowRight, Truck, Plus, Star
+  PhoneCall, MessageCircle, Tag, X, FileText, Send, Calendar, Upload, ArrowRight, Truck, Plus, Star, CheckCircle2
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -300,6 +300,17 @@ export default function AssignedLeads() {
       toast.error(err?.response?.data?.message || "Failed to update status.");
     } finally {
       setUpdatingStatus(false);
+    }
+  };
+
+  const handleMarkCallDone = async (lead, e) => {
+    e?.stopPropagation();
+    try {
+      await leadAPI.updateLead(lead._id, { status: "call_done" });
+      toast.success("Lead marked as call done!");
+      fetchLeads();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to mark call done.");
     }
   };
 
@@ -601,6 +612,12 @@ export default function AssignedLeads() {
                           title="Call">
                           <PhoneCall size={13} />
                         </a>
+                        <button onClick={e => handleMarkCallDone(lead, e)}
+                          className="p-2 rounded-lg border transition-all hover:scale-105"
+                          style={{ backgroundColor: "#e0f2fe", borderColor: "#bae6fd", color: "#0369a1" }}
+                          title="Mark Call Done">
+                          <CheckCircle2 size={13} />
+                        </button>
                         {lead.integrations?.whatsappLink && (
                           <button onClick={() => setWaModalLead(lead)}
                             className="p-2 rounded-lg border transition-all hover:scale-105"
@@ -684,6 +701,11 @@ export default function AssignedLeads() {
                       className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border text-xs font-bold hover:opacity-80 min-w-[70px]"
                       style={{ backgroundColor: "#fef3c7", borderColor: "#fed7aa", color: "#b45309" }}>
                       <Calendar size={12} /> Meeting
+                    </button>
+                    <button onClick={e => handleMarkCallDone(lead, e)}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border text-xs font-bold hover:opacity-80 min-w-[70px]"
+                      style={{ backgroundColor: "#e0f2fe", borderColor: "#bae6fd", color: "#0369a1" }}>
+                      <CheckCircle2 size={12} /> Call Done
                     </button>
                   </div>
                 </div>
@@ -785,7 +807,7 @@ export default function AssignedLeads() {
               <div>
                 <label className="block text-[11px] font-black uppercase tracking-wider mb-3" style={{ color: c.textSecondary }}>Select New Status *</label>
                 <div className="grid grid-cols-2 gap-3">
-                  {STATUS_OPTS.filter(s => s !== "all").map(s => {
+                  {STATUS_OPTS.filter(s => s !== "all" && s !== "call_done").map(s => {
                     const cfg = statusConfig[s];
                     const isSelected = newStatus === s;
                     return (
