@@ -251,6 +251,12 @@ export default function LeadDetails() {
                 </a>
               </div>
             )}
+            {lead.awbNumber && (
+              <div className="p-3 rounded-xl border" style={{ backgroundColor: c.background, borderColor: c.border }}>
+                <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: c.textSecondary }}>AWB / Tracking Number</p>
+                <p className="text-sm font-semibold text-indigo-600">{lead.awbNumber}</p>
+              </div>
+            )}
             {lead.invoiceUrl && (
               <div className="p-3 rounded-xl border" style={{ backgroundColor: c.background, borderColor: c.border }}>
                 <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: c.textSecondary }}>Invoice Document</p>
