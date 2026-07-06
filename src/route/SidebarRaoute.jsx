@@ -29,7 +29,7 @@ const routes = [
   { path: "/communications",     component: CommunicationHistory, name: "Communications",   icon: FaComments      },
   { path: "/meetings",           component: MeetingsManagement, name: "Meetings",           icon: FaCalendarAlt   },
   { path: "/visits",             component: VisitsManagement,   name: "Visits Calendar",    icon: FaCalendarAlt   },
-  { path: "/notifications",      component: Notifications,      name: "Notifications",      icon: FaBell          },
+  // Notifications removed per user request
   { path: "/sales-analytics",    component: SalesAnalytics,     name: "Sales Analytics",    icon: FaChartLine     },
   { path: "/sale-confirm/:id",   component: SaleConfirm,        name: "Sale Confirm",       icon: FaCheckCircle,  hide: true },
   { path: "/delivery/:id",       component: DeliveryManagement, name: "Delivery",           icon: FaTruck,        hide: true },
