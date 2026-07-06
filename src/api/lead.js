@@ -42,7 +42,9 @@ export const leadAPI = {
   },
 
   confirmSale: async (id, data) => {
-    const response = await axiosInstance.post(`/leads/${id}/confirm-sale`, data);
+    const response = await axiosInstance.post(`/leads/${id}/confirm-sale`, data, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
     return response.data;
   },
 
