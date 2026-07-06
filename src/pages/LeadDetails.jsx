@@ -7,7 +7,7 @@ import {
   ArrowLeft, Phone, Mail, MessageSquare,
   Save, RefreshCw, AlertCircle, CheckCircle2,
   User, Tag, IndianRupee, Send, Wrench,
-  PhoneCall, Clock, ExternalLink
+  PhoneCall, Clock, ExternalLink, Calendar
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -422,6 +422,11 @@ export default function LeadDetails() {
                         {r.addedBy?.name && (
                           <span className="flex items-center gap-1 text-[11px]" style={{ color: c.textSecondary }}>
                             <User size={10} /> {r.addedBy.name}
+                          </span>
+                        )}
+                        {r.followUpDate && (
+                          <span className="flex items-center gap-1 text-[11px] font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: `${c.primary}20`, color: c.primary }}>
+                            <Calendar size={10} /> Scheduled: {fmtDateTime(r.followUpDate)}
                           </span>
                         )}
                       </div>
