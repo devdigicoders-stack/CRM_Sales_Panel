@@ -89,7 +89,7 @@ export default function AssignedLeads() {
   const [salesUsers, setSalesUsers]     = useState([]);
   const [settings, setSettings]         = useState({ leadSources: [], leadTags: [], priorities: [] });
   const [settingsLoading, setSettingsLoading] = useState(false);
-  const [addLeadForm, setAddLeadForm]   = useState({ name: "", phone: "", email: "", source: "", priority: "medium", assignedTo: "", remark: "", tags: [] });
+  const [addLeadForm, setAddLeadForm]   = useState({ name: "", phone: "", email: "", address: "", source: "", priority: "medium", assignedTo: "", remark: "", tags: [] });
   const [addingLead, setAddingLead]     = useState(false);
 
   useEffect(() => { fetchLeads(); }, []);
@@ -106,7 +106,7 @@ export default function AssignedLeads() {
   };
 
   const openAddLeadModal = async () => {
-    setAddLeadForm({ name: "", phone: "", email: "", source: "", priority: "medium", assignedTo: "", remark: "", tags: [] });
+    setAddLeadForm({ name: "", phone: "", email: "", address: "", source: "", priority: "medium", assignedTo: "", remark: "", tags: [] });
     setSettings({ leadSources: [], leadTags: [], priorities: [] });
     setSettingsLoading(true);
     setAddLeadModal(true);
@@ -149,6 +149,7 @@ export default function AssignedLeads() {
         name: addLeadForm.name.trim(),
         phone: addLeadForm.phone.trim(),
         email: addLeadForm.email.trim() || undefined,
+        address: addLeadForm.address.trim() || undefined,
         source: addLeadForm.source,
         priority: addLeadForm.priority,
         remark: addLeadForm.remark.trim() || undefined,
@@ -994,10 +995,17 @@ export default function AssignedLeads() {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-[11px] font-black uppercase tracking-wider mb-1.5" style={{ color: c.textSecondary }}>Email</label>
-                <input type="email" value={addLeadForm.email} onChange={e => setAddLeadForm(f => ({ ...f, email: e.target.value }))}
-                  placeholder="email@example.com" className="w-full p-3 rounded-xl border text-sm outline-none" style={inputSt} />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider mb-1.5" style={{ color: c.textSecondary }}>Email</label>
+                  <input type="email" value={addLeadForm.email} onChange={e => setAddLeadForm(f => ({ ...f, email: e.target.value }))}
+                    placeholder="email@example.com" className="w-full p-3 rounded-xl border text-sm outline-none" style={inputSt} />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider mb-1.5" style={{ color: c.textSecondary }}>Address</label>
+                  <input type="text" value={addLeadForm.address} onChange={e => setAddLeadForm(f => ({ ...f, address: e.target.value }))}
+                    placeholder="Address" className="w-full p-3 rounded-xl border text-sm outline-none" style={inputSt} />
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
