@@ -351,7 +351,8 @@ export default function AssignedLeads() {
     const matchSearch = !search ||
       l.name?.toLowerCase().includes(q) ||
       l.phone?.includes(search) ||
-      l.email?.toLowerCase().includes(q);
+      l.email?.toLowerCase().includes(q) ||
+      (l.tags && l.tags.some(tag => tag?.toLowerCase().includes(q)));
       
     let effectiveStatus = l.status;
     if (effectiveStatus === "assigned" && (!l.remarks || l.remarks.length === 0)) {
