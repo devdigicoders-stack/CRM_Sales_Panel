@@ -817,7 +817,7 @@ export default function AssignedLeads() {
               <div>
                 <label className="block text-[11px] font-black uppercase tracking-wider mb-3" style={{ color: c.textSecondary }}>Select New Status *</label>
                 <div className="grid grid-cols-2 gap-3">
-                  {STATUS_OPTS.filter(s => s !== "all" && s !== "call_done").map(s => {
+                  {STATUS_OPTS.filter(s => s !== "all" && s !== "call_done" && s !== "converted" && s !== "closed").map(s => {
                     const cfg = statusConfig[s];
                     const isSelected = newStatus === s;
                     return (

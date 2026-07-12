@@ -494,7 +494,7 @@ export default function LeadDetails() {
                 <select value={newStatus} onChange={e => setNewStatus(e.target.value)}
                   className="w-full p-3 rounded-xl border text-sm font-semibold outline-none"
                   style={inputSt}>
-                  {STATUS_OPTS.filter(s => s !== "call_done").map(s => (
+                  {STATUS_OPTS.filter(s => s !== "call_done" && s !== "converted" && s !== "closed").map(s => (
                     <option key={s} value={s}>{s.replace("_", " ").toUpperCase()}</option>
                   ))}
                 </select>
