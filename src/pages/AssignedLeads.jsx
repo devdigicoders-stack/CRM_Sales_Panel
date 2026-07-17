@@ -61,6 +61,7 @@ export default function AssignedLeads() {
   const [page, setPage]       = useState(1);
   const [search, setSearch]   = useState("");
   const [status, setStatus]   = useState("all");
+  const [selectedTag, setSelectedTag] = useState("all");
   const [dateFilter, setDateFilter]             = useState("");
   const [view, setView]       = useState("table");
   const [callTab, setCallTab] = useState("pending");
@@ -97,8 +98,21 @@ export default function AssignedLeads() {
   const fetchLeads = async () => {
     try {
       setLoading(true); setError(null);
-      const res = await leadAPI.getAllLeads();
-      setLeads(res?.data?.leads || []);
+      const [leadsRes, settingsRes] = await Promise.allSettled([
+        leadAPI.getAllLeads(),
+        leadAPI.getSettings()
+      ]);
+      
+      if (leadsRes.status === "fulfilled") {
+        setLeads(leadsRes.value?.data?.leads || []);
+      } else {
+        throw new Error("Failed to load leads");
+      }
+
+      if (settingsRes.status === "fulfilled") {
+        const s = settingsRes.value?.data?.settings || settingsRes.value?.settings || {};
+        setSettings(prev => ({ ...prev, leadTags: s.leadTags || [] }));
+      }
     } catch {
       setError("Failed to load leads.");
       toast.error("Failed to load leads.");
@@ -360,11 +374,12 @@ export default function AssignedLeads() {
     }
 
     const matchStatus = status === "all" || effectiveStatus === status;
+    const matchTag = selectedTag === "all" || (l.tags && l.tags.includes(selectedTag));
     
     const matchTab = callTab === "done" ? !!l.isCallDone : !l.isCallDone;
     const matchDate = !dateFilter || new Date(l.createdAt).toISOString().split('T')[0] === dateFilter;
 
-    return matchSearch && matchStatus && matchTab && matchDate;
+    return matchSearch && matchStatus && matchTag && matchTab && matchDate;
   });
 
   const totalPages = Math.ceil(filtered.length / ITEMS) || 1;
@@ -471,6 +486,16 @@ export default function AssignedLeads() {
             <option key={s} value={s}>{s === "all" ? "All Status" : s.replace("_", " ").toUpperCase()}</option>
           ))}
         </select>
+        {settings.leadTags?.length > 0 && (
+          <select value={selectedTag} onChange={e => { setSelectedTag(e.target.value); setPage(1); }}
+            className="px-4 py-2.5 rounded-xl border text-sm font-semibold outline-none"
+            style={inputSt}>
+            <option value="all">ALL TAGS</option>
+            {settings.leadTags.map(t => (
+              <option key={t} value={t}>{t.toUpperCase()}</option>
+            ))}
+          </select>
+        )}
         <input 
           type="date"
           value={dateFilter}

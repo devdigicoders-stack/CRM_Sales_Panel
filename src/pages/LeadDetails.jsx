@@ -21,6 +21,7 @@ export default function LeadDetails() {
   const navigate = useNavigate();
 
   const [lead, setLead]           = useState(null);
+  const [settings, setSettings]   = useState({ leadTags: [] });
   const [loading, setLoading]     = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
 
@@ -42,10 +43,23 @@ export default function LeadDetails() {
   const fetchLead = async () => {
     try {
       setLoading(true);
-      const res = await leadAPI.getLeadById(id);
-      const l = res?.data?.lead;
-      setLead(l);
-      setNewStatus(l?.status || "");
+      const [leadRes, settingsRes] = await Promise.allSettled([
+        leadAPI.getLeadById(id),
+        leadAPI.getSettings()
+      ]);
+      
+      if (leadRes.status === "fulfilled") {
+        const l = leadRes.value?.data?.lead;
+        setLead(l);
+        setNewStatus(l?.status || "");
+      } else {
+        throw new Error("Failed to load lead details.");
+      }
+
+      if (settingsRes.status === "fulfilled") {
+        const s = settingsRes.value?.data?.settings || settingsRes.value?.settings || {};
+        setSettings({ leadTags: s.leadTags || [] });
+      }
     } catch {
       toast.error("Failed to load lead details.");
     } finally { setLoading(false); }
@@ -63,11 +77,14 @@ export default function LeadDetails() {
 
       let finalNote = remarkNote;
       if (meetingType === "visit") finalNote = `[Visit] ${finalNote}`;
+      if (meetingType === "not_interested") finalNote = `[Closed - Not Interested] ${finalNote}`;
+      if (meetingType === "converted") finalNote = `[Converted / Deal Closed] ${finalNote}`;
 
       const res = await leadAPI.addRemark(id, {
         note: finalNote,
         followUpDate: meetingType === "follow_up" ? (remarkFollowup || undefined) : undefined,
         visitDate: meetingType === "visit" ? (remarkFollowup || undefined) : undefined,
+        status: meetingType === "not_interested" ? "not_interested" : meetingType === "converted" ? "converted" : undefined,
         tags: tagsArray.length > 0 ? tagsArray : undefined,
       });
       setLead(prev => ({ ...prev, remarks: res?.data?.lead?.remarks || prev.remarks, tags: res?.data?.lead?.tags || prev.tags }));
@@ -357,12 +374,23 @@ export default function LeadDetails() {
               
               <div>
                 <label className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: c.textSecondary }}>
-                  Tags (comma separated)
+                  Tag
                 </label>
-                <input type="text" value={remarkTags} onChange={e => setRemarkTags(e.target.value)}
-                  placeholder="e.g. Meeting Scheduled, Follow-up, Important"
-                  className="w-full p-2.5 rounded-xl border text-sm outline-none"
-                  style={inputSt} />
+                {settings.leadTags?.length > 0 ? (
+                  <select value={remarkTags} onChange={e => setRemarkTags(e.target.value)}
+                    className="w-full p-2.5 rounded-xl border text-sm outline-none bg-transparent appearance-none"
+                    style={{ ...inputSt, cursor: "pointer" }}>
+                    <option value="" className="bg-white dark:bg-zinc-800">No Tag</option>
+                    {settings.leadTags.map(t => (
+                      <option key={t} value={t} className="bg-white dark:bg-zinc-800">{t}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <input type="text" value={remarkTags} onChange={e => setRemarkTags(e.target.value)}
+                    placeholder="e.g. Meeting Scheduled, Follow-up, Important"
+                    className="w-full p-2.5 rounded-xl border text-sm outline-none"
+                    style={inputSt} />
+                )}
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3">
@@ -375,16 +403,20 @@ export default function LeadDetails() {
                     style={{ ...inputSt, cursor: "pointer" }}>
                     <option value="follow_up" className="bg-white dark:bg-zinc-800">Follow-up / Call / General</option>
                     <option value="visit" className="bg-white dark:bg-zinc-800">Visit / Demo</option>
+                    <option value="not_interested" className="bg-white dark:bg-zinc-800">Closed - Not Interested</option>
+                    <option value="converted" className="bg-white dark:bg-zinc-800">Converted / Deal Closed</option>
                   </select>
                 </div>
-                <div className="flex-1">
-                  <label className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: c.textSecondary }}>
-                    {meetingType === 'visit' ? 'Visit/Demo Date' : 'Next Follow-up Date'}
-                  </label>
-                  <input type="datetime-local" value={remarkFollowup} onChange={e => setRemarkFollowup(e.target.value)}
-                    className="w-full p-2.5 rounded-xl border text-sm outline-none"
-                    style={inputSt} />
-                </div>
+                {meetingType !== "not_interested" && meetingType !== "converted" && (
+                  <div className="flex-1">
+                    <label className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: c.textSecondary }}>
+                      {meetingType === 'visit' ? 'Visit/Demo Date' : 'Next Follow-up Date'}
+                    </label>
+                    <input type="datetime-local" value={remarkFollowup} onChange={e => setRemarkFollowup(e.target.value)}
+                      className="w-full p-2.5 rounded-xl border text-sm outline-none"
+                      style={inputSt} />
+                  </div>
+                )}
                 <button type="submit" disabled={addingRemark || !remarkNote.trim()}
                   className="self-end flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold disabled:opacity-60 transition-all hover:opacity-90"
                   style={{ backgroundColor: c.primary, color: "#fff" }}>
