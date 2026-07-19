@@ -24,7 +24,7 @@ export default function SaleConfirm() {
     transferToAccounts: true,
     amountPaid:     "",
     pendingAmount:  "",
-    paymentScreenshot: null,
+    paymentScreenshots: [],
   });
 
   useEffect(() => {
@@ -54,7 +54,7 @@ export default function SaleConfirm() {
     if (!form.dealValue || isNaN(Number(form.dealValue))) return toast.error("Enter valid deal value.");
     if (form.amountPaid === "" || isNaN(Number(form.amountPaid))) return toast.error("Amount paid required.");
     if (form.pendingAmount === "" || isNaN(Number(form.pendingAmount))) return toast.error("Pending amount required.");
-    if (!form.paymentScreenshot) return toast.error("Payment screenshot is required.");
+    if (!form.paymentScreenshots || form.paymentScreenshots.length === 0) return toast.error("At least one payment screenshot is required.");
 
     setSaving(true);
     try {
@@ -65,7 +65,9 @@ export default function SaleConfirm() {
       formData.append("pendingAmount", Number(form.pendingAmount));
       formData.append("accountRemarks", form.accountRemarks);
       formData.append("transferToAccounts", form.transferToAccounts);
-      formData.append("paymentScreenshot", form.paymentScreenshot);
+      form.paymentScreenshots.forEach(file => {
+        formData.append("paymentScreenshots", file);
+      });
 
       await leadAPI.confirmSale(id, formData);
       toast.success("Sale confirmed & transferred to Accounts!");
@@ -197,27 +199,36 @@ export default function SaleConfirm() {
             </div>
           </div>
 
-          {/* Payment Screenshot */}
+          {/* Payment Screenshots */}
           <div>
             <label className="text-[11px] font-black uppercase tracking-wider block mb-2" style={{ color: c.textSecondary }}>
-              <FileText size={11} className="inline mr-1" /> Payment Screenshot / Receipt *
+              <FileText size={11} className="inline mr-1" /> Payment Screenshots / Receipts *
             </label>
-            <div className="flex items-center gap-3">
-              <input type="file" accept="image/*,application/pdf" id="payment-screenshot-input"
-                onChange={e => {
-                  if (e.target.files && e.target.files[0]) {
-                    setForm(f => ({ ...f, paymentScreenshot: e.target.files[0] }));
-                  }
-                }}
-                className="hidden" />
-              <label htmlFor="payment-screenshot-input"
-                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border text-xs font-bold cursor-pointer hover:opacity-90 transition-all"
-                style={{ backgroundColor: c.surface, borderColor: c.border, color: c.text }}>
-                <FileText size={14} /> Choose File
-              </label>
-              <span className="text-xs" style={{ color: c.textSecondary }}>
-                {form.paymentScreenshot ? form.paymentScreenshot.name : "No file chosen (Mandatory)"}
-              </span>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center gap-3">
+                <input type="file" multiple accept="image/*,application/pdf" id="payment-screenshot-input"
+                  onChange={e => {
+                    if (e.target.files && e.target.files.length > 0) {
+                      setForm(f => ({ ...f, paymentScreenshots: Array.from(e.target.files) }));
+                    }
+                  }}
+                  className="hidden" />
+                <label htmlFor="payment-screenshot-input"
+                  className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border text-xs font-bold cursor-pointer hover:opacity-90 transition-all"
+                  style={{ backgroundColor: c.surface, borderColor: c.border, color: c.text }}>
+                  <FileText size={14} /> Choose Files
+                </label>
+                <span className="text-xs" style={{ color: c.textSecondary }}>
+                  {form.paymentScreenshots.length > 0 ? `${form.paymentScreenshots.length} file(s) chosen` : "No files chosen (Mandatory)"}
+                </span>
+              </div>
+              {form.paymentScreenshots.length > 0 && (
+                <div className="flex flex-col gap-1 mt-1">
+                  {form.paymentScreenshots.map((f, i) => (
+                    <span key={i} className="text-xs" style={{ color: c.textSecondary }}>• {f.name}</span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 

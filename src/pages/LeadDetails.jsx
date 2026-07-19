@@ -260,12 +260,23 @@ export default function LeadDetails() {
                 <p className="text-sm font-semibold" style={{ color: c.text }}>{lead.productDetails}</p>
               </div>
             )}
-            {lead.paymentScreenshot && (
+            {(lead.paymentScreenshots?.length > 0 || lead.paymentScreenshot) && (
               <div className="p-3 rounded-xl border" style={{ backgroundColor: c.background, borderColor: c.border }}>
-                <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: c.textSecondary }}>Payment Screenshot</p>
-                <a href={`${import.meta.env.VITE_API_BASE_URL.replace('/api/v1', '')}${lead.paymentScreenshot}`} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-blue-600 hover:underline flex items-center gap-1">
-                  View Payment Screenshot <ExternalLink size={12} className="inline-block" />
-                </a>
+                <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: c.textSecondary }}>Payment Screenshots</p>
+                <div className="flex flex-col gap-1">
+                  {lead.paymentScreenshots?.length > 0 
+                    ? lead.paymentScreenshots.map((url, i) => (
+                        <a key={i} href={`${import.meta.env.VITE_API_BASE_URL.replace('/api/v1', '')}${url}`} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-blue-600 hover:underline flex items-center gap-1">
+                          View Payment Screenshot {i + 1} <ExternalLink size={12} className="inline-block" />
+                        </a>
+                      ))
+                    : (
+                        <a href={`${import.meta.env.VITE_API_BASE_URL.replace('/api/v1', '')}${lead.paymentScreenshot}`} target="_blank" rel="noopener noreferrer" className="text-sm font-semibold text-blue-600 hover:underline flex items-center gap-1">
+                          View Payment Screenshot <ExternalLink size={12} className="inline-block" />
+                        </a>
+                      )
+                  }
+                </div>
               </div>
             )}
             {lead.awbNumber && (
