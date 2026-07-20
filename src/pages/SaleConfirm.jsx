@@ -209,7 +209,9 @@ export default function SaleConfirm() {
                 <input type="file" multiple accept="image/*,application/pdf" id="payment-screenshot-input"
                   onChange={e => {
                     if (e.target.files && e.target.files.length > 0) {
-                      setForm(f => ({ ...f, paymentScreenshots: Array.from(e.target.files) }));
+                      const newFiles = Array.from(e.target.files);
+                      setForm(f => ({ ...f, paymentScreenshots: [...f.paymentScreenshots, ...newFiles] }));
+                      e.target.value = "";
                     }
                   }}
                   className="hidden" />
@@ -219,13 +221,22 @@ export default function SaleConfirm() {
                   <FileText size={14} /> Choose Files
                 </label>
                 <span className="text-xs" style={{ color: c.textSecondary }}>
-                  {form.paymentScreenshots.length > 0 ? `${form.paymentScreenshots.length} file(s) chosen` : "No files chosen (Mandatory)"}
+                  {form.paymentScreenshots.length > 0 ? `${form.paymentScreenshots.length} file(s) selected` : "No files chosen (Mandatory)"}
                 </span>
               </div>
               {form.paymentScreenshots.length > 0 && (
-                <div className="flex flex-col gap-1 mt-1">
+                <div className="flex flex-col gap-1.5 mt-2">
                   {form.paymentScreenshots.map((f, i) => (
-                    <span key={i} className="text-xs" style={{ color: c.textSecondary }}>• {f.name}</span>
+                    <div key={i} className="flex items-center justify-between p-2 rounded-lg border text-xs" style={{ backgroundColor: c.surface, borderColor: c.border }}>
+                      <span className="truncate pr-2 font-medium" style={{ color: c.text }}>• {f.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => setForm(prev => ({ ...prev, paymentScreenshots: prev.paymentScreenshots.filter((_, idx) => idx !== i) }))}
+                        className="text-red-500 hover:text-red-700 font-bold px-1.5 py-0.5 text-xs rounded hover:bg-red-50 transition-colors"
+                      >
+                        Remove
+                      </button>
+                    </div>
                   ))}
                 </div>
               )}
