@@ -7,7 +7,7 @@ import {
   Users, Phone, Mail, RefreshCw, AlertCircle,
   ChevronLeft, ChevronRight, Eye, UserCheck,
   Search, LayoutGrid, Table2, TrendingUp,
-  PhoneCall, MessageCircle, Tag, X, FileText, Send, Calendar, Upload, ArrowRight, Truck, Plus, Star, CheckCircle2
+  PhoneCall, MessageCircle, Tag, X, FileText, Send, Calendar, Upload, ArrowRight, Truck, Plus, Star, CheckCircle2, Edit
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -360,6 +360,57 @@ export default function AssignedLeads() {
     }
   };
 
+  const [editModal, setEditModal]       = useState(false);
+  const [editLead, setEditLead]         = useState(null);
+  const [editForm, setEditForm]         = useState({
+    name: "", phone: "", email: "", address: "", source: "", status: "new", priority: "medium", tags: ""
+  });
+  const [updatingLead, setUpdatingLead] = useState(false);
+
+  const openEditModal = (lead, e) => {
+    e?.stopPropagation();
+    setEditLead(lead);
+    setEditForm({
+      name: lead.name || "",
+      phone: lead.phone || "",
+      email: lead.email || "",
+      address: lead.address || "",
+      source: lead.source || "",
+      status: lead.status || "new",
+      priority: lead.priority || "medium",
+      tags: Array.isArray(lead.tags) ? lead.tags.join(", ") : (lead.tags || ""),
+    });
+    setEditModal(true);
+  };
+
+  const handleUpdateLead = async (e) => {
+    e.preventDefault();
+    if (!editForm.name.trim() || !editForm.phone.trim()) {
+      return toast.error("Name and Phone are required.");
+    }
+    setUpdatingLead(true);
+    try {
+      const payload = {
+        name: editForm.name.trim(),
+        phone: editForm.phone.trim(),
+        email: editForm.email.trim(),
+        address: editForm.address.trim(),
+        source: editForm.source.trim(),
+        status: editForm.status,
+        priority: editForm.priority,
+        tags: editForm.tags ? editForm.tags.split(",").map(t => t.trim()).filter(Boolean) : [],
+      };
+      await leadAPI.updateLead(editLead._id, payload);
+      toast.success("Lead updated successfully!");
+      setEditModal(false);
+      fetchLeads();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to update lead.");
+    } finally {
+      setUpdatingLead(false);
+    }
+  };
+
   const filtered = leads.filter(l => {
     const q = search.toLowerCase();
     const matchSearch = !search ||
@@ -605,6 +656,12 @@ export default function AssignedLeads() {
                           title="View Details">
                           <Eye size={13} />
                         </button>
+                        <button onClick={e => openEditModal(lead, e)}
+                          className="p-2 rounded-lg border transition-all hover:scale-105"
+                          style={{ backgroundColor: "#eff6ff", borderColor: "#bfdbfe", color: "#2563eb" }}
+                          title="Edit Lead">
+                          <Edit size={13} />
+                        </button>
                         <button onClick={e => openStatusModal(lead, e)}
                           className="p-2 rounded-lg border transition-all hover:scale-105"
                           style={{ backgroundColor: "#eef2ff", borderColor: "#c7d2fe", color: "#4338ca" }}
@@ -716,6 +773,11 @@ export default function AssignedLeads() {
                       className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border text-xs font-bold hover:opacity-80 min-w-[70px]"
                       style={{ backgroundColor: `${c.primary}12`, borderColor: `${c.primary}30`, color: c.primary }}>
                       <Eye size={12} /> View
+                    </button>
+                    <button onClick={e => openEditModal(lead, e)}
+                      className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border text-xs font-bold hover:opacity-80 min-w-[70px]"
+                      style={{ backgroundColor: "#eff6ff", borderColor: "#bfdbfe", color: "#2563eb" }}>
+                      <Edit size={12} /> Edit
                     </button>
                     <button onClick={e => openStatusModal(lead, e)}
                       className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border text-xs font-bold hover:opacity-80 min-w-[70px]"
@@ -1137,6 +1199,115 @@ export default function AssignedLeads() {
                 <button type="button" onClick={() => setMeetingModal(false)} className="flex-1 py-2.5 rounded-xl text-sm font-bold border" style={{ borderColor: c.border, color: c.textSecondary }}>Cancel</button>
                 <button type="submit" disabled={schedulingMeeting || !meetingForm.title || !meetingForm.date} className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold disabled:opacity-60 transition-all hover:opacity-90" style={{ backgroundColor: "#b45309", color: "#fff" }}>
                   {schedulingMeeting ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Scheduling…</> : <><Send size={14} /> Schedule Meeting</>}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {/* ── EDIT LEAD MODAL ── */}
+      {editModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={e => e.target === e.currentTarget && setEditModal(false)}>
+          <div className="w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+            style={{ backgroundColor: c.surface }}>
+            <div className="flex items-center justify-between px-6 py-4 border-b shrink-0"
+              style={{ borderColor: c.border, backgroundColor: isDark ? `${c.background}99` : `${c.background}70` }}>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+                  style={{ backgroundColor: `${c.primary}18`, color: c.primary }}>
+                  <Edit size={18} />
+                </div>
+                <div>
+                  <h3 className="font-black text-base" style={{ color: c.text }}>Edit Lead</h3>
+                  <p className="text-xs" style={{ color: c.textSecondary }}>Update details for {editLead?.name}</p>
+                </div>
+              </div>
+              <button onClick={() => setEditModal(false)}
+                className="w-8 h-8 rounded-full flex items-center justify-center transition-colors hover:bg-red-100"
+                style={{ backgroundColor: "#fee2e2", color: "#dc2626" }}>
+                <X size={15} />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateLead} className="p-6 space-y-4 overflow-y-auto flex-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider mb-1.5" style={{ color: c.textSecondary }}>Full Name *</label>
+                  <input type="text" value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+                    required placeholder="e.g. Rahul Sharma" className="w-full p-3 rounded-xl border text-sm outline-none font-medium" style={inputSt} />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider mb-1.5" style={{ color: c.textSecondary }}>Phone Number *</label>
+                  <input type="tel" value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))}
+                    required placeholder="e.g. 9876543210" className="w-full p-3 rounded-xl border text-sm outline-none font-medium" style={inputSt} />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider mb-1.5" style={{ color: c.textSecondary }}>Email Address</label>
+                  <input type="email" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
+                    placeholder="e.g. rahul@example.com" className="w-full p-3 rounded-xl border text-sm outline-none font-medium" style={inputSt} />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider mb-1.5" style={{ color: c.textSecondary }}>Source</label>
+                  <input type="text" value={editForm.source} onChange={e => setEditForm(f => ({ ...f, source: e.target.value }))}
+                    placeholder="e.g. Direct, Google Ads" className="w-full p-3 rounded-xl border text-sm outline-none font-medium" style={inputSt} />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-black uppercase tracking-wider mb-1.5" style={{ color: c.textSecondary }}>Address</label>
+                  <textarea rows={2} value={editForm.address} onChange={e => setEditForm(f => ({ ...f, address: e.target.value }))}
+                    placeholder="e.g. House No., Street, City, State, Pincode" className="w-full p-3 rounded-xl border text-sm outline-none resize-none font-medium" style={inputSt} />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider mb-1.5" style={{ color: c.textSecondary }}>Status</label>
+                  <select value={editForm.status} onChange={e => setEditForm(f => ({ ...f, status: e.target.value }))}
+                    className="w-full p-3 rounded-xl border text-sm outline-none font-medium" style={inputSt}>
+                    <option value="new">New</option>
+                    <option value="assigned">Assigned</option>
+                    <option value="interested">Interested</option>
+                    <option value="in_process">In Process</option>
+                    <option value="converted">Converted</option>
+                    <option value="closed">Closed</option>
+                    <option value="not_interested">Not Interested</option>
+                    <option value="call_done">Call Done</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider mb-1.5" style={{ color: c.textSecondary }}>Priority</label>
+                  <select value={editForm.priority} onChange={e => setEditForm(f => ({ ...f, priority: e.target.value }))}
+                    className="w-full p-3 rounded-xl border text-sm outline-none font-medium" style={inputSt}>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-black uppercase tracking-wider mb-1.5" style={{ color: c.textSecondary }}>Tags (comma separated)</label>
+                  <input type="text" value={editForm.tags} onChange={e => setEditForm(f => ({ ...f, tags: e.target.value }))}
+                    placeholder="e.g. Hot Lead, Follow Up, Interested" className="w-full p-3 rounded-xl border text-sm outline-none font-medium" style={inputSt} />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4 border-t shrink-0" style={{ borderColor: c.border }}>
+                <button type="button" onClick={() => setEditModal(false)}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-bold border hover:opacity-80 transition-all"
+                  style={{ borderColor: c.border, color: c.textSecondary }}>
+                  Cancel
+                </button>
+                <button type="submit" disabled={updatingLead || !editForm.name.trim() || !editForm.phone.trim()}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold disabled:opacity-60 transition-all hover:opacity-90 shadow-md"
+                  style={{ backgroundColor: c.primary, color: "#fff" }}>
+                  {updatingLead ? (
+                    <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Saving…</>
+                  ) : (
+                    <><CheckCircle2 size={15} /> Save Changes</>
+                  )}
                 </button>
               </div>
             </form>

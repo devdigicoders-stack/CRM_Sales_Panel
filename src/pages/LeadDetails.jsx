@@ -7,7 +7,7 @@ import {
   ArrowLeft, Phone, Mail, MessageSquare,
   Save, RefreshCw, AlertCircle, CheckCircle2,
   User, Tag, IndianRupee, Send, Wrench,
-  PhoneCall, Clock, ExternalLink, Calendar
+  PhoneCall, Clock, ExternalLink, Calendar, Edit, X
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -35,6 +35,56 @@ export default function LeadDetails() {
   // Status update
   const [newStatus, setNewStatus]     = useState("");
   const [updatingStatus, setUpdatingStatus] = useState(false);
+
+  // Edit Lead state
+  const [editModal, setEditModal]       = useState(false);
+  const [editForm, setEditForm]         = useState({
+    name: "", phone: "", email: "", address: "", source: "", status: "new", priority: "medium", tags: ""
+  });
+  const [updatingLead, setUpdatingLead] = useState(false);
+
+  const openEditModal = () => {
+    if (!lead) return;
+    setEditForm({
+      name: lead.name || "",
+      phone: lead.phone || "",
+      email: lead.email || "",
+      address: lead.address || "",
+      source: lead.source || "",
+      status: lead.status || "new",
+      priority: lead.priority || "medium",
+      tags: Array.isArray(lead.tags) ? lead.tags.join(", ") : (lead.tags || ""),
+    });
+    setEditModal(true);
+  };
+
+  const handleUpdateLead = async (e) => {
+    e.preventDefault();
+    if (!editForm.name.trim() || !editForm.phone.trim()) {
+      return toast.error("Name and Phone are required.");
+    }
+    setUpdatingLead(true);
+    try {
+      const payload = {
+        name: editForm.name.trim(),
+        phone: editForm.phone.trim(),
+        email: editForm.email.trim(),
+        address: editForm.address.trim(),
+        source: editForm.source.trim(),
+        status: editForm.status,
+        priority: editForm.priority,
+        tags: editForm.tags ? editForm.tags.split(",").map(t => t.trim()).filter(Boolean) : [],
+      };
+      await leadAPI.updateLead(id, payload);
+      toast.success("Lead details updated!");
+      setEditModal(false);
+      fetchLead();
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to update lead.");
+    } finally {
+      setUpdatingLead(false);
+    }
+  };
 
   const isDark = c.mode === "dark";
 
@@ -183,6 +233,11 @@ export default function LeadDetails() {
           <h1 className="text-xl sm:text-2xl font-black truncate" style={{ color: c.text }}>{lead.name}</h1>
           <p className="text-xs" style={{ color: c.textSecondary }}>Lead ID: {lead._id}</p>
         </div>
+        <button onClick={openEditModal}
+          className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold border transition-all hover:scale-105 shadow-xs"
+          style={{ backgroundColor: "#eff6ff", borderColor: "#bfdbfe", color: "#2563eb" }}>
+          <Edit size={14} /> Edit Lead
+        </button>
         <span className="px-3 py-1 rounded-xl text-xs font-black uppercase border"
           style={{ backgroundColor: sCfg.bg, color: sCfg.color, borderColor: sCfg.border }}>
           {lead.status?.replace("_", " ")}
@@ -566,6 +621,110 @@ export default function LeadDetails() {
                 {lead.status?.replace("_", " ")}
               </p>
             </div>
+          </div>
+        </div>
+      )}
+      {/* ── EDIT LEAD MODAL ── */}
+      {editModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={e => e.target === e.currentTarget && setEditModal(false)}>
+          <div className="w-full max-w-2xl rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col"
+            style={{ backgroundColor: c.surface }}>
+            <div className="flex items-center justify-between px-6 py-4 border-b shrink-0"
+              style={{ borderColor: c.border, backgroundColor: isDark ? `${c.background}99` : `${c.background}70` }}>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center"
+                  style={{ backgroundColor: `${c.primary}18`, color: c.primary }}>
+                  <Edit size={18} />
+                </div>
+                <div>
+                  <h3 className="font-black text-base" style={{ color: c.text }}>Edit Lead</h3>
+                  <p className="text-xs" style={{ color: c.textSecondary }}>Update details for {lead?.name}</p>
+                </div>
+              </div>
+              <button onClick={() => setEditModal(false)}
+                className="w-8 h-8 rounded-full flex items-center justify-center transition-colors hover:bg-red-100"
+                style={{ backgroundColor: "#fee2e2", color: "#dc2626" }}>
+                <X size={15} />
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateLead} className="p-6 space-y-4 overflow-y-auto flex-1 text-left">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider mb-1.5" style={{ color: c.textSecondary }}>Full Name *</label>
+                  <input type="text" value={editForm.name} onChange={e => setEditForm(f => ({ ...f, name: e.target.value }))}
+                    required placeholder="e.g. Rahul Sharma" className="w-full p-3 rounded-xl border text-sm outline-none font-medium" style={inputSt} />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider mb-1.5" style={{ color: c.textSecondary }}>Phone Number *</label>
+                  <input type="tel" value={editForm.phone} onChange={e => setEditForm(f => ({ ...f, phone: e.target.value }))}
+                    required placeholder="e.g. 9876543210" className="w-full p-3 rounded-xl border text-sm outline-none font-medium" style={inputSt} />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider mb-1.5" style={{ color: c.textSecondary }}>Email Address</label>
+                  <input type="email" value={editForm.email} onChange={e => setEditForm(f => ({ ...f, email: e.target.value }))}
+                    placeholder="e.g. rahul@example.com" className="w-full p-3 rounded-xl border text-sm outline-none font-medium" style={inputSt} />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider mb-1.5" style={{ color: c.textSecondary }}>Source</label>
+                  <input type="text" value={editForm.source} onChange={e => setEditForm(f => ({ ...f, source: e.target.value }))}
+                    placeholder="e.g. Direct, Google Ads" className="w-full p-3 rounded-xl border text-sm outline-none font-medium" style={inputSt} />
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-black uppercase tracking-wider mb-1.5" style={{ color: c.textSecondary }}>Address</label>
+                  <textarea rows={2} value={editForm.address} onChange={e => setEditForm(f => ({ ...f, address: e.target.value }))}
+                    placeholder="e.g. House No., Street, City, State, Pincode" className="w-full p-3 rounded-xl border text-sm outline-none resize-none font-medium" style={inputSt} />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider mb-1.5" style={{ color: c.textSecondary }}>Status</label>
+                  <select value={editForm.status} onChange={e => setEditForm(f => ({ ...f, status: e.target.value }))}
+                    className="w-full p-3 rounded-xl border text-sm outline-none font-medium" style={inputSt}>
+                    {STATUS_OPTS.map(opt => (
+                      <option key={opt} value={opt}>{opt.replace("_", " ").toUpperCase()}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-black uppercase tracking-wider mb-1.5" style={{ color: c.textSecondary }}>Priority</label>
+                  <select value={editForm.priority} onChange={e => setEditForm(f => ({ ...f, priority: e.target.value }))}
+                    className="w-full p-3 rounded-xl border text-sm outline-none font-medium" style={inputSt}>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                </div>
+
+                <div className="sm:col-span-2">
+                  <label className="block text-[11px] font-black uppercase tracking-wider mb-1.5" style={{ color: c.textSecondary }}>Tags (comma separated)</label>
+                  <input type="text" value={editForm.tags} onChange={e => setEditForm(f => ({ ...f, tags: e.target.value }))}
+                    placeholder="e.g. Hot Lead, Follow Up, Interested" className="w-full p-3 rounded-xl border text-sm outline-none font-medium" style={inputSt} />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4 border-t shrink-0" style={{ borderColor: c.border }}>
+                <button type="button" onClick={() => setEditModal(false)}
+                  className="flex-1 py-2.5 rounded-xl text-sm font-bold border hover:opacity-80 transition-all"
+                  style={{ borderColor: c.border, color: c.textSecondary }}>
+                  Cancel
+                </button>
+                <button type="submit" disabled={updatingLead || !editForm.name.trim() || !editForm.phone.trim()}
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-bold disabled:opacity-60 transition-all hover:opacity-90 shadow-md"
+                  style={{ backgroundColor: c.primary, color: "#fff" }}>
+                  {updatingLead ? (
+                    <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Saving…</>
+                  ) : (
+                    <><CheckCircle2 size={15} /> Save Changes</>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
