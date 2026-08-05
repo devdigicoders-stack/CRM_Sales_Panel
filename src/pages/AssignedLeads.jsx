@@ -602,7 +602,14 @@ export default function AssignedLeads() {
                       {(page - 1) * ITEMS + idx + 1}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
-                      <p className="text-sm font-black" style={{ color: c.text }}>{lead.name || "—"}</p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-black" style={{ color: c.text }}>{lead.name || "—"}</p>
+                        {lead.isReassigned && (
+                          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-orange-500 text-white tracking-wide uppercase">
+                            REASSIGNED
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap" onClick={e => e.stopPropagation()}>
                       <a href={`tel:${lead.phone}`}
@@ -741,7 +748,7 @@ export default function AssignedLeads() {
                 <div className="p-4 space-y-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="font-black text-base truncate" style={{ color: c.text }}>{lead.name}</p>
+                      <div className="flex items-center gap-2 flex-wrap"><p className="font-black text-base truncate" style={{ color: c.text }}>{lead.name}</p>{lead.isReassigned && (<span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[9px] font-extrabold bg-orange-500 text-white tracking-wide uppercase">REASSIGNED</span>)}</div>
                       <p className="text-xs" style={{ color: c.textSecondary }}>{lead.source || "—"}</p>
                     </div>
                     <StatusBadge status={lead.status} />
