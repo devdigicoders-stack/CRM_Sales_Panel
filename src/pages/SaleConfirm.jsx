@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useTheme } from "../context/ThemeContext";
 import { useParams, useNavigate } from "react-router-dom";
 import { leadAPI } from "../api/lead";
+import axiosInstance from "../api/axiosInstance";
 import {
   ArrowLeft, CheckCircle2, IndianRupee, Wrench,
   FileText, Send, AlertCircle, Users
@@ -15,9 +16,12 @@ export default function SaleConfirm() {
   const isDark = c.mode === "dark";
 
   const [lead, setLead]       = useState(null);
+  const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving]   = useState(false);
   const [form, setForm]       = useState({
+    productId:      "",
+    productQuantity: 1,
     productDetails: "",
     dealValue:      "",
     accountRemarks: "",
@@ -28,6 +32,7 @@ export default function SaleConfirm() {
   });
 
   useEffect(() => {
+    // Load lead details
     leadAPI.getLeadById(id)
       .then(res => {
         const l = res?.data?.lead;
@@ -37,6 +42,8 @@ export default function SaleConfirm() {
         const pending = Math.max(0, deal - paid);
         setForm(f => ({
           ...f,
+          productId:      l?.productId || "",
+          productQuantity: l?.productQuantity || 1,
           productDetails: l?.productDetails || "",
           dealValue:      deal || "",
           accountRemarks: l?.accountRemarks || "",
@@ -46,6 +53,15 @@ export default function SaleConfirm() {
       })
       .catch(() => toast.error("Failed to load lead."))
       .finally(() => setLoading(false));
+
+    // Load active products for catalog selection
+    axiosInstance.get("/stock/products")
+      .then(res => {
+        if (res.data.status === "success") {
+          setProducts(res.data.data);
+        }
+      })
+      .catch(err => console.error("Failed to load catalog products", err));
   }, [id]);
 
   const handleSubmit = async (e) => {
@@ -59,6 +75,8 @@ export default function SaleConfirm() {
     setSaving(true);
     try {
       const formData = new FormData();
+      formData.append("productId", form.productId);
+      formData.append("productQuantity", Number(form.productQuantity));
       formData.append("productDetails", form.productDetails);
       formData.append("dealValue", Number(form.dealValue));
       formData.append("amountPaid", Number(form.amountPaid));
@@ -122,10 +140,69 @@ export default function SaleConfirm() {
 
         <form onSubmit={handleSubmit} className="p-5 space-y-5">
 
+          {/* Select Product from Stock Catalog */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="text-[11px] font-black uppercase tracking-wider block mb-2" style={{ color: c.textSecondary }}>
+                <Wrench size={11} className="inline mr-1" /> Select Product (Stock Catalog)
+              </label>
+              <select
+                value={form.productId}
+                onChange={e => {
+                  const prodId = e.target.value;
+                  const selectedProd = products.find(p => p._id === prodId);
+                  setForm(f => ({
+                    ...f,
+                    productId: prodId,
+                    productDetails: selectedProd ? `${selectedProd.name} (SKU: ${selectedProd.sku})` : f.productDetails,
+                    dealValue: selectedProd ? selectedProd.sellingPrice.toString() : f.dealValue,
+                    pendingAmount: selectedProd ? Math.max(0, selectedProd.sellingPrice - (Number(f.amountPaid) || 0)).toString() : f.pendingAmount
+                  }));
+                }}
+                className="w-full p-3 rounded-xl border text-sm outline-none"
+                style={inputSt}
+              >
+                <option value="">-- Select Product --</option>
+                {products.map(p => (
+                  <option key={p._id} value={p._id} disabled={p.currentStock <= 0}>
+                    {p.name} (SKU: {p.sku}) - Stock: {p.currentStock} {p.unit?.shortName || "units"}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="text-[11px] font-black uppercase tracking-wider block mb-2" style={{ color: c.textSecondary }}>
+                Quantity *
+              </label>
+              <input
+                type="number"
+                min="1"
+                value={form.productQuantity}
+                onChange={e => {
+                  const qty = Number(e.target.value) || 1;
+                  setForm(f => {
+                    const selectedProd = products.find(p => p._id === f.productId);
+                    const dealPrice = selectedProd ? (selectedProd.sellingPrice * qty) : Number(f.dealValue);
+                    return {
+                      ...f,
+                      productQuantity: qty,
+                      dealValue: selectedProd ? dealPrice.toString() : f.dealValue,
+                      pendingAmount: selectedProd ? Math.max(0, dealPrice - (Number(f.amountPaid) || 0)).toString() : f.pendingAmount
+                    };
+                  });
+                }}
+                className="w-full p-3 rounded-xl border text-sm outline-none"
+                style={inputSt}
+                required
+              />
+            </div>
+          </div>
+
           {/* Product Details */}
           <div>
             <label className="text-[11px] font-black uppercase tracking-wider block mb-2" style={{ color: c.textSecondary }}>
-              <Wrench size={11} className="inline mr-1" /> Product / Service Details *
+              <Wrench size={11} className="inline mr-1" /> Product / Service Description Details *
             </label>
             <textarea value={form.productDetails}
               onChange={e => setForm(f => ({ ...f, productDetails: e.target.value }))}
