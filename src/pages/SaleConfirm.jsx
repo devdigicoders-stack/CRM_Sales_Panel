@@ -154,7 +154,7 @@ export default function SaleConfirm() {
                   setForm(f => ({
                     ...f,
                     productId: prodId,
-                    productDetails: selectedProd ? `${selectedProd.name} (SKU: ${selectedProd.sku})` : f.productDetails,
+                    productDetails: selectedProd ? selectedProd.name : f.productDetails,
                     dealValue: selectedProd ? selectedProd.sellingPrice.toString() : f.dealValue,
                     pendingAmount: selectedProd ? Math.max(0, selectedProd.sellingPrice - (Number(f.amountPaid) || 0)).toString() : f.pendingAmount
                   }));
@@ -165,7 +165,7 @@ export default function SaleConfirm() {
                 <option value="">-- Select Product --</option>
                 {products.map(p => (
                   <option key={p._id} value={p._id} disabled={p.currentStock <= 0}>
-                    {p.name} (SKU: {p.sku}) - Stock: {p.currentStock} {p.unit?.shortName || "units"}
+                    {p.name}
                   </option>
                 ))}
               </select>

@@ -312,7 +312,7 @@ export default function LeadDetails() {
             {lead.productId && (
               <div className="p-3 rounded-xl border mb-3" style={{ backgroundColor: c.background, borderColor: c.border }}>
                 <p className="text-[10px] font-bold uppercase tracking-wider mb-1" style={{ color: c.textSecondary }}>Catalog Product</p>
-                <p className="text-sm font-black" style={{ color: c.text }}>{lead.productId.name} (SKU: {lead.productId.sku})</p>
+                <p className="text-sm font-black" style={{ color: c.text }}>{lead.productId.name}</p>
                 <p className="text-xs mt-0.5" style={{ color: c.textSecondary }}>Quantity Sold: {lead.productQuantity || 1}</p>
               </div>
             )}
