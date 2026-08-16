@@ -2,7 +2,7 @@ import { lazy } from "react";
 import {
   FaTachometerAlt, FaIdCard, FaStar,
   FaUserCheck, FaTruck, FaCheckCircle, FaPhoneSlash,
-  FaComments, FaChartLine, FaCalendarAlt, FaBell, FaUserTimes
+  FaComments, FaChartLine, FaCalendarAlt, FaBell, FaUserTimes, FaRedoAlt
 } from "react-icons/fa";
 
 const Dashboard             = lazy(() => import("../pages/Dashboard"));
@@ -19,10 +19,12 @@ const SalesAnalytics        = lazy(() => import("../pages/SalesAnalytics"));
 const MeetingsManagement    = lazy(() => import("../pages/MeetingsManagement"));
 const VisitsManagement      = lazy(() => import("../pages/VisitsManagement"));
 const Notifications         = lazy(() => import("../pages/Notifications"));
+const ReassignedLeads       = lazy(() => import("../pages/ReassignedLeads"));
 
 const routes = [
   { path: "/dashboard",          component: Dashboard,          name: "Dashboard",           icon: FaTachometerAlt },
   { path: "/assigned-leads",     component: AssignedLeads,      name: "Assigned Leads",     icon: FaUserCheck     },
+  { path: "/reassigned-leads",   component: ReassignedLeads,    name: "Reassigned Leads",   icon: FaRedoAlt       },
   { path: "/interested-leads",   component: InterestedLeads,    name: "Interested Leads",   icon: FaStar          },
   { path: "/missed-followups",   component: MissedFollowups,    name: "Missed Follow-ups",  icon: FaPhoneSlash    },
   { path: "/rejected-leads",     component: RejectedLeads,      name: "Rejected Leads",     icon: FaUserTimes     },
