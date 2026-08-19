@@ -604,7 +604,7 @@ export default function AssignedLeads() {
                     onClick={() => navigate(`/lead-details/${lead._id}`)}>
 
                     <td className="px-4 py-3 text-xs font-bold" style={{ color: c.textSecondary }}>
-                      {(page - 1) * ITEMS + idx + 1}
+                      {(page - 1) * PAGE_SIZE + idx + 1}
                     </td>
                     <td className="px-4 py-3 whitespace-nowrap">
                       <div className="flex items-center gap-2">
