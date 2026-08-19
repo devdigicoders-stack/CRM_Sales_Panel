@@ -74,16 +74,8 @@ export default function RejectedLeads() {
   const fetchRejected = async () => {
     try {
       setLoading(true); setError(null);
-      const res = await leadAPI.getAllLeads();
-      const allLeads = res?.data?.leads || res?.leads || res || [];
-      
-      const filteredLeads = allLeads.filter(l => {
-        const status = (l.status || '').toLowerCase();
-        const verificationStatus = (l.verificationStatus || '').toLowerCase();
-        return status === 'not_interested' || status === 'rejected' || verificationStatus === 'rejected';
-      });
-      
-      setLeads(filteredLeads);
+      const res = await leadAPI.getAllLeads({ status: "not_interested" });
+      setLeads(res?.data?.leads || []);
     } catch {
       setError("Failed to load rejected leads.");
       toast.error("Failed to load data.");

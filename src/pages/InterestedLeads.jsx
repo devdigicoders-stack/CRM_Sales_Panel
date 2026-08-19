@@ -84,10 +84,8 @@ export default function InterestedLeads() {
   const fetchLeads = async () => {
     try {
       setLoading(true); setError(null);
-      const res = await leadAPI.getAllLeads();
-      const allLeads = res?.data?.leads || [];
-      const interestedLeads = allLeads.filter(l => l.status === "interested");
-      setLeads(interestedLeads);
+      const res = await leadAPI.getAllLeads({ status: "interested" });
+      setLeads(res?.data?.leads || []);
     } catch {
       setError("Failed to load leads.");
       toast.error("Failed to load data.");

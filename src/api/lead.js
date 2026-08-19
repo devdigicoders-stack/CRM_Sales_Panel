@@ -1,8 +1,12 @@
 import axiosInstance from "./axiosInstance";
 
+let _settingsCache = null;
+let _settingsCacheTime = 0;
+const SETTINGS_TTL = 5 * 60 * 1000; // 5 minutes
+
 export const leadAPI = {
   getAllLeads: async (params = {}) => {
-    const response = await axiosInstance.get("/leads", { params });
+    const response = await axiosInstance.get("/leads", { params: { limit: 200, ...params } });
     return response.data;
   },
 
@@ -78,7 +82,13 @@ export const leadAPI = {
   },
 
   getSettings: async () => {
+    const now = Date.now();
+    if (_settingsCache && (now - _settingsCacheTime) < SETTINGS_TTL) {
+      return _settingsCache;
+    }
     const response = await axiosInstance.get("/settings");
+    _settingsCache = response.data;
+    _settingsCacheTime = now;
     return response.data;
   },
 };

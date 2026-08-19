@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useTheme } from "../context/ThemeContext";
 import { leadAPI } from "../api/lead";
+import { dashboardAPI } from "../api/dashboard";
 import { useNavigate } from "react-router-dom";
 import {
   AlertTriangle, Phone, Mail, RefreshCw, AlertCircle,
@@ -70,15 +71,9 @@ export default function MissedFollowups() {
   const fetchMissed = async () => {
     try {
       setLoading(true); setError(null);
-      const res = await leadAPI.getAllLeads();
-      const allLeads = res?.data?.leads || [];
-      
-      const missedLeads = allLeads.filter(l => {
-        if (!l.followUpDate) return false;
-        return new Date(l.followUpDate) < new Date();
-      });
-      
-      setLeads(missedLeads.sort((a, b) => new Date(a.followUpDate) - new Date(b.followUpDate)));
+      const res = await dashboardAPI.getMissedFollowups();
+      const missedLeads = res?.data?.leads || res?.leads || [];
+      setLeads(missedLeads);
     } catch {
       setError("Failed to load missed follow-ups.");
       toast.error("Failed to load data.");

@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-const ITEMS = 10;
 const STATUS_OPTS = ["all","new","assigned","interested","in_process","converted","closed","not_interested","call_done"];
 
 const priorityConfig = {
@@ -59,6 +58,8 @@ export default function AssignedLeads() {
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState(null);
   const [page, setPage]       = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal]     = useState(0);
   const [search, setSearch]   = useState("");
   const [status, setStatus]   = useState("all");
   const [selectedTag, setSelectedTag] = useState("all");
@@ -93,18 +94,30 @@ export default function AssignedLeads() {
   const [addLeadForm, setAddLeadForm]   = useState({ name: "", phone: "", email: "", address: "", source: "", priority: "medium", assignedTo: "", remark: "", tags: [] });
   const [addingLead, setAddingLead]     = useState(false);
 
-  useEffect(() => { fetchLeads(); }, []);
+  const PAGE_SIZE = 50;
 
-  const fetchLeads = async () => {
+  useEffect(() => { fetchLeads(1); }, [status, callTab, dateFilter, selectedTag]);
+
+  const fetchLeads = async (pageNum = page) => {
     try {
       setLoading(true); setError(null);
+      const params = { page: pageNum, limit: PAGE_SIZE };
+      if (status !== "all") params.status = status;
+      if (dateFilter) params.createdAt = dateFilter;
+      if (selectedTag !== "all") params.tag = selectedTag;
+      params.isCallDone = callTab === "done" ? "true" : "false";
+      if (search.trim()) params.search = search.trim();
+
       const [leadsRes, settingsRes] = await Promise.allSettled([
-        leadAPI.getAllLeads(),
+        leadAPI.getAllLeads(params),
         leadAPI.getSettings()
       ]);
       
       if (leadsRes.status === "fulfilled") {
         setLeads(leadsRes.value?.data?.leads || []);
+        setTotal(leadsRes.value?.total || 0);
+        setTotalPages(leadsRes.value?.pages || 1);
+        setPage(pageNum);
       } else {
         throw new Error("Failed to load leads");
       }
@@ -411,38 +424,22 @@ export default function AssignedLeads() {
     }
   };
 
-  const filtered = leads.filter(l => {
-    const q = search.toLowerCase();
-    const matchSearch = !search ||
-      l.name?.toLowerCase().includes(q) ||
-      l.phone?.includes(search) ||
-      l.email?.toLowerCase().includes(q) ||
-      (l.tags && l.tags.some(tag => tag?.toLowerCase().includes(q)));
-      
-    let effectiveStatus = l.status;
-    if (effectiveStatus === "assigned" && (!l.remarks || l.remarks.length === 0)) {
-      effectiveStatus = "new";
+  const handleSearch = (e) => {
+    setSearch(e.target.value);
+  };
+
+  const handleSearchSubmit = (e) => {
+    if (e.key === "Enter" || e.type === "click") {
+      fetchLeads(1);
     }
+  };
 
-    const matchStatus = status === "all" || effectiveStatus === status;
-    const matchTag = selectedTag === "all" || (l.tags && l.tags.includes(selectedTag));
-    
-    const matchTab = callTab === "done" ? !!l.isCallDone : !l.isCallDone;
-    const matchDate = !dateFilter || new Date(l.createdAt).toISOString().split('T')[0] === dateFilter;
-
-    return matchSearch && matchStatus && matchTag && matchTab && matchDate;
-  });
-
-  const totalPages = Math.ceil(filtered.length / ITEMS) || 1;
-  const paginated  = filtered.slice((page - 1) * ITEMS, page * ITEMS);
+  // No client-side filter needed — all filters are server-side
+  const paginated = leads;
 
   const stats = [
-    { label: "Total",         value: leads.length,                                              color: c.primary,  bg: `${c.primary}12`, icon: Users      },
-    { label: "Interested",    value: leads.filter(l => l.status === "interested").length,       color: "#10b981",  bg: "#ecfdf5",        icon: TrendingUp  },
-    { label: "In Process",    value: leads.filter(l => l.status === "in_process").length,       color: "#f59e0b",  bg: "#fffbeb",        icon: RefreshCw   },
-    { label: "Converted",     value: leads.filter(l => l.status === "converted").length,        color: "#8b5cf6",  bg: "#f5f3ff",        icon: UserCheck   },
-    { label: "Closed",        value: leads.filter(l => l.status === "closed").length,           color: "#6b7280",  bg: "#f9fafb",        icon: AlertCircle },
-    { label: "Not Interested",value: leads.filter(l => l.status === "not_interested").length,   color: "#ef4444",  bg: "#fef2f2",        icon: AlertCircle },
+    { label: "Total",         value: total,    color: c.primary,  bg: `${c.primary}12`, icon: Users      },
+    { label: "Page",          value: `${page}/${totalPages}`, color: "#6b7280", bg: "#f9fafb", icon: RefreshCw },
   ];
 
   const inputSt = { backgroundColor: c.background, color: c.text, borderColor: c.border };
@@ -474,7 +471,7 @@ export default function AssignedLeads() {
             <UserCheck size={26} style={{ color: c.primary }} /> Assigned Leads
           </h1>
           <p className="mt-1 text-sm" style={{ color: c.textSecondary }}>
-            {leads.length} total leads assigned to you
+            {total} total leads assigned to you
           </p>
         </div>
         <div className="flex gap-2">
@@ -501,23 +498,23 @@ export default function AssignedLeads() {
       </div>
 
       <div className="flex gap-3 mb-2">
-        <button onClick={() => { setCallTab("pending"); setPage(1); }}
+        <button onClick={() => setCallTab("pending")}
           className="px-5 py-2.5 rounded-xl text-sm font-bold transition-all border"
           style={{
             backgroundColor: callTab === "pending" ? c.primary : "transparent",
             color: callTab === "pending" ? "#fff" : c.textSecondary,
             borderColor: callTab === "pending" ? c.primary : c.border
           }}>
-          Pending Calls ({leads.filter(l => !l.isCallDone).length})
+          Pending Calls
         </button>
-        <button onClick={() => { setCallTab("done"); setPage(1); }}
+        <button onClick={() => setCallTab("done")}
           className="px-6 py-2.5 rounded-xl text-sm font-bold transition-all border"
           style={{
             backgroundColor: callTab === "done" ? c.primary : "transparent",
             color: callTab === "done" ? "#fff" : c.textSecondary,
             borderColor: callTab === "done" ? c.primary : c.border
           }}>
-          Call Done ({leads.filter(l => l.isCallDone).length})
+          Call Done
         </button>
       </div>
 
@@ -525,12 +522,20 @@ export default function AssignedLeads() {
         style={{ backgroundColor: c.surface, borderColor: c.border }}>
         <div className="relative flex-1">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: c.textSecondary }} />
-          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
-            placeholder="Search by name, phone, email..."
-            className="w-full pl-9 pr-4 py-2.5 rounded-xl border text-sm outline-none"
+          <input value={search} onChange={e => { setSearch(e.target.value); if (e.target.value === "") fetchLeads(1); }}
+            onKeyDown={e => e.key === "Enter" && fetchLeads(1)}
+            placeholder="Search by name, phone, email... (press Enter)"
+            className="w-full pl-9 pr-8 py-2.5 rounded-xl border text-sm outline-none"
             style={inputSt} />
+          {search && (
+            <button onClick={() => { setSearch(""); fetchLeads(1); }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:opacity-80"
+              style={{ color: c.textSecondary }}>
+              <X size={14} />
+            </button>
+          )}
         </div>
-        <select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }}
+        <select value={status} onChange={e => { setStatus(e.target.value); }}
           className="px-4 py-2.5 rounded-xl border text-sm font-semibold outline-none"
           style={inputSt}>
           {STATUS_OPTS.map(s => (
@@ -550,7 +555,7 @@ export default function AssignedLeads() {
         <input 
           type="date"
           value={dateFilter}
-          onChange={e => { setDateFilter(e.target.value); setPage(1); }}
+          onChange={e => { setDateFilter(e.target.value); }}
           className="px-4 py-2.5 rounded-xl border text-sm font-semibold outline-none w-full sm:w-auto min-w-[140px]"
           style={{ ...inputSt, cursor: "pointer" }}
         />
@@ -819,25 +824,27 @@ export default function AssignedLeads() {
         </div>
       )}
 
-      {paginated.length > 0 && (
+      {totalPages > 1 && (
         <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
           <p className="text-sm" style={{ color: c.textSecondary }}>
-            Showing <b style={{ color: c.text }}>{(page - 1) * ITEMS + 1}</b>–
-            <b style={{ color: c.text }}>{Math.min(page * ITEMS, filtered.length)}</b> of{" "}
-            <b style={{ color: c.text }}>{filtered.length}</b> leads
+            Page <b style={{ color: c.text }}>{page}</b> of <b style={{ color: c.text }}>{totalPages}</b> — <b style={{ color: c.text }}>{total}</b> total leads
           </p>
           <div className="flex gap-1.5">
-            <PageBtn onClick={() => setPage(p => Math.max(p - 1, 1))} disabled={page === 1} c={c}>
+            <PageBtn onClick={() => fetchLeads(page - 1)} disabled={page === 1} c={c}>
               <ChevronLeft size={15} />
             </PageBtn>
-            {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => i + 1).map(n => (
-              <button key={n} onClick={() => setPage(n)}
-                className="w-8 h-8 rounded-lg text-xs font-bold transition-all"
-                style={{ backgroundColor: page === n ? c.primary : c.background, color: page === n ? "#fff" : c.text, border: `1px solid ${page === n ? c.primary : c.border}` }}>
-                {n}
-              </button>
-            ))}
-            <PageBtn onClick={() => setPage(p => Math.min(p + 1, totalPages))} disabled={page === totalPages} c={c}>
+            {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
+              const n = totalPages <= 7 ? i + 1 : Math.max(1, page - 3) + i;
+              if (n > totalPages) return null;
+              return (
+                <button key={n} onClick={() => fetchLeads(n)}
+                  className="w-8 h-8 rounded-lg text-xs font-bold transition-all"
+                  style={{ backgroundColor: page === n ? c.primary : c.background, color: page === n ? "#fff" : c.text, border: `1px solid ${page === n ? c.primary : c.border}` }}>
+                  {n}
+                </button>
+              );
+            })}
+            <PageBtn onClick={() => fetchLeads(page + 1)} disabled={page === totalPages} c={c}>
               <ChevronRight size={15} />
             </PageBtn>
           </div>

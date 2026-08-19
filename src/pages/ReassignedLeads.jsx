@@ -3,12 +3,10 @@ import { useTheme } from "../context/ThemeContext";
 import { leadAPI } from "../api/lead";
 import { useNavigate } from "react-router-dom";
 import {
-  Phone, RefreshCw, AlertCircle, ChevronLeft, ChevronRight,
+  Phone, RefreshCw, AlertCircle, ChevronRight,
   Eye, Search, PhoneCall, CheckCircle2, FileText, Send, Calendar, X, Tag, Star
 } from "lucide-react";
 import { toast } from "sonner";
-
-const ITEMS = 10;
 
 const priorityConfig = {
   high:   { bg: "#fee2e2", color: "#b91c1c", border: "#fca5a5" },
@@ -51,11 +49,13 @@ export default function ReassignedLeads() {
   const navigate = useNavigate();
   const isDark = c.mode === "dark";
 
-  const [leads, setLeads]     = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError]     = useState(null);
-  const [page, setPage]       = useState(1);
-  const [search, setSearch]   = useState("");
+  const [leads, setLeads]         = useState([]);
+  const [loading, setLoading]     = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError]         = useState(null);
+  const [page, setPage]           = useState(1);
+  const [hasMore, setHasMore]     = useState(false);
+  const [search, setSearch]       = useState("");
 
   const [remarkModal, setRemarkModal]   = useState(false);
   const [remarkLead, setRemarkLead]     = useState(null);
@@ -67,18 +67,27 @@ export default function ReassignedLeads() {
   const [newStatus, setNewStatus]           = useState("");
   const [updatingStatus, setUpdatingStatus] = useState(false);
 
-  useEffect(() => { fetchLeads(); }, []);
+  const PAGE_SIZE = 50;
 
-  const fetchLeads = async () => {
+  useEffect(() => { fetchLeads(1, true); }, []);
+
+  // Fetch page-by-page directly with server-side isReassigned filter
+  const fetchLeads = async (pageNum = 1, reset = false) => {
     try {
-      setLoading(true); setError(null);
-      const res = await leadAPI.getAllLeads();
-      const all = res?.data?.leads || [];
-      setLeads(all.filter(l => l.isReassigned));
+      reset ? setLoading(true) : setLoadingMore(true);
+      setError(null);
+      const params = { page: pageNum, limit: PAGE_SIZE, isReassigned: true };
+      if (search.trim()) params.search = search.trim();
+      const res = await leadAPI.getAllLeads(params);
+      const batch = res?.data?.leads || [];
+      const totalPages = res?.pages || 1;
+      setLeads(prev => reset ? batch : [...prev, ...batch]);
+      setPage(pageNum);
+      setHasMore(pageNum < totalPages);
     } catch {
       setError("Failed to load reassigned leads.");
       toast.error("Failed to load reassigned leads.");
-    } finally { setLoading(false); }
+    } finally { setLoading(false); setLoadingMore(false); }
   };
 
   const handleMarkCallDone = async (lead, e) => {
@@ -146,9 +155,8 @@ export default function ReassignedLeads() {
       l.email?.toLowerCase().includes(q);
   });
 
-  const totalPages = Math.ceil(filtered.length / ITEMS) || 1;
-  const paginated  = filtered.slice((page - 1) * ITEMS, page * ITEMS);
-  const inputSt    = { backgroundColor: c.background, color: c.text, borderColor: c.border };
+  const paginated = filtered;
+  const inputSt   = { backgroundColor: c.background, color: c.text, borderColor: c.border };
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] gap-3">
@@ -182,7 +190,7 @@ export default function ReassignedLeads() {
             {leads.length} leads reassigned to you — call them now
           </p>
         </div>
-        <button onClick={fetchLeads}
+        <button onClick={() => fetchLeads(1, true)}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border transition-all hover:opacity-80"
           style={{ borderColor: c.border, color: c.textSecondary, backgroundColor: c.surface }}>
           <RefreshCw size={14} /> Refresh
@@ -193,10 +201,18 @@ export default function ReassignedLeads() {
       <div className="flex gap-3 p-4 rounded-2xl border" style={{ backgroundColor: c.surface, borderColor: c.border }}>
         <div className="relative flex-1">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: c.textSecondary }} />
-          <input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }}
-            placeholder="Search by name, phone, email..."
-            className="w-full pl-9 pr-4 py-2.5 rounded-xl border text-sm outline-none"
+          <input value={search} onChange={e => { setSearch(e.target.value); if (e.target.value === "") fetchLeads(1, true); }}
+            onKeyDown={e => e.key === "Enter" && fetchLeads(1, true)}
+            placeholder="Search by name, phone, email... (press Enter)"
+            className="w-full pl-9 pr-8 py-2.5 rounded-xl border text-sm outline-none"
             style={inputSt} />
+          {search && (
+            <button onClick={() => { setSearch(""); fetchLeads(1, true); }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:opacity-80"
+              style={{ color: c.textSecondary }}>
+              <X size={14} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -234,7 +250,7 @@ export default function ReassignedLeads() {
                     onClick={() => navigate(`/lead-details/${lead._id}`)}>
 
                     <td className="px-4 py-3 text-xs font-bold" style={{ color: c.textSecondary }}>
-                      {(page - 1) * ITEMS + idx + 1}
+                      {idx + 1}
                     </td>
 
                     <td className="px-4 py-3 whitespace-nowrap">
@@ -328,30 +344,21 @@ export default function ReassignedLeads() {
         </div>
       )}
 
-      {/* Pagination */}
-      {paginated.length > 0 && (
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
-          <p className="text-sm" style={{ color: c.textSecondary }}>
-            Showing <b style={{ color: c.text }}>{(page - 1) * ITEMS + 1}</b>–
-            <b style={{ color: c.text }}>{Math.min(page * ITEMS, filtered.length)}</b> of{" "}
-            <b style={{ color: c.text }}>{filtered.length}</b> leads
-          </p>
-          <div className="flex gap-1.5">
-            <PageBtn onClick={() => setPage(p => Math.max(p - 1, 1))} disabled={page === 1} c={c}>
-              <ChevronLeft size={15} />
-            </PageBtn>
-            {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => i + 1).map(n => (
-              <button key={n} onClick={() => setPage(n)}
-                className="w-8 h-8 rounded-lg text-xs font-bold transition-all"
-                style={{ backgroundColor: page === n ? c.primary : c.background, color: page === n ? "#fff" : c.text, border: `1px solid ${page === n ? c.primary : c.border}` }}>
-                {n}
-              </button>
-            ))}
-            <PageBtn onClick={() => setPage(p => Math.min(p + 1, totalPages))} disabled={page === totalPages} c={c}>
-              <ChevronRight size={15} />
-            </PageBtn>
-          </div>
+      {/* Load More */}
+      {hasMore && (
+        <div className="flex justify-center pt-2">
+          <button onClick={() => fetchLeads(page + 1, false)}
+            disabled={loadingMore}
+            className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold border transition-all hover:opacity-80 disabled:opacity-50"
+            style={{ borderColor: c.border, color: c.textSecondary, backgroundColor: c.surface }}>
+            {loadingMore ? <><RefreshCw size={14} className="animate-spin" /> Loading…</> : <><ChevronRight size={14} /> Load More</>}
+          </button>
         </div>
+      )}
+      {!hasMore && leads.length > 0 && (
+        <p className="text-center text-xs py-2" style={{ color: c.textSecondary }}>
+          Showing all {leads.length} reassigned leads
+        </p>
       )}
 
       {/* Remark Modal */}
@@ -453,15 +460,5 @@ export default function ReassignedLeads() {
         </div>
       )}
     </div>
-  );
-}
-
-function PageBtn({ children, onClick, disabled, c }) {
-  return (
-    <button onClick={onClick} disabled={disabled}
-      className="w-8 h-8 rounded-lg flex items-center justify-center border transition-all disabled:opacity-40"
-      style={{ backgroundColor: c.background, borderColor: c.border, color: c.text }}>
-      {children}
-    </button>
   );
 }
