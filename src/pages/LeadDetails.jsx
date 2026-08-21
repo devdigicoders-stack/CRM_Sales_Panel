@@ -29,7 +29,7 @@ export default function LeadDetails() {
   const [remarkNote, setRemarkNote]       = useState("");
   const [meetingType, setMeetingType]     = useState("follow_up");
   const [remarkFollowup, setRemarkFollowup] = useState("");
-  const [remarkTags, setRemarkTags] = useState("");
+  const [remarkTags, setRemarkTags] = useState([]);
   const [addingRemark, setAddingRemark]   = useState(false);
 
   // Status update
@@ -120,10 +120,9 @@ export default function LeadDetails() {
     if (!remarkNote.trim()) return toast.error("Please enter a remark.");
     setAddingRemark(true);
     try {
-      const tagsArray = remarkTags
-        .split(",")
-        .map(tag => tag.trim())
-        .filter(tag => tag.length > 0);
+      const tagsArray = Array.isArray(remarkTags)
+        ? remarkTags
+        : (remarkTags ? remarkTags.split(",").map(tag => tag.trim()).filter(Boolean) : []);
 
       let finalNote = remarkNote;
       if (meetingType === "visit") finalNote = `[Visit] ${finalNote}`;
@@ -140,7 +139,7 @@ export default function LeadDetails() {
       setLead(prev => ({ ...prev, remarks: res?.data?.lead?.remarks || prev.remarks, tags: res?.data?.lead?.tags || prev.tags }));
       setRemarkNote(""); 
       setRemarkFollowup("");
-      setRemarkTags("");
+      setRemarkTags([]);
       setMeetingType("follow_up");
       toast.success("Remark added!");
     } catch { toast.error("Failed to add remark."); }
@@ -446,20 +445,41 @@ export default function LeadDetails() {
                 style={inputSt} />
               
               <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider block mb-1" style={{ color: c.textSecondary }}>
-                  Tag
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-wider block" style={{ color: c.textSecondary }}>
+                    Tags (Multi-select)
+                  </label>
+                  {remarkTags?.length > 0 && (
+                    <button type="button" onClick={() => setRemarkTags([])} className="text-[10px] font-bold text-red-500 hover:underline">
+                      Clear ({remarkTags.length})
+                    </button>
+                  )}
+                </div>
                 {settings.leadTags?.length > 0 ? (
-                  <select value={remarkTags} onChange={e => setRemarkTags(e.target.value)}
-                    className="w-full p-2.5 rounded-xl border text-sm outline-none bg-transparent appearance-none"
-                    style={{ ...inputSt, cursor: "pointer" }}>
-                    <option value="" className="bg-white dark:bg-zinc-800">No Tag</option>
-                    {settings.leadTags.map(t => (
-                      <option key={t} value={t} className="bg-white dark:bg-zinc-800">{t}</option>
-                    ))}
-                  </select>
+                  <div className="flex flex-wrap gap-2 p-3 rounded-xl border min-h-[44px]" style={{ ...inputSt, borderColor: c.border }}>
+                    {settings.leadTags.map(t => {
+                      const selected = (Array.isArray(remarkTags) ? remarkTags : []).includes(t);
+                      return (
+                        <button key={t} type="button"
+                          onClick={() => setRemarkTags(prev => {
+                            const cur = Array.isArray(prev) ? prev : [];
+                            return selected ? cur.filter(item => item !== t) : [...cur, t];
+                          })}
+                          className="px-2.5 py-1 rounded-full text-[11px] font-bold border transition-all flex items-center gap-1"
+                          style={{
+                            backgroundColor: selected ? c.primary : c.background,
+                            color: selected ? "#fff" : c.textSecondary,
+                            borderColor: selected ? c.primary : c.border,
+                          }}>
+                          {selected && <CheckCircle2 size={11} />}
+                          {t}
+                        </button>
+                      );
+                    })}
+                  </div>
                 ) : (
-                  <input type="text" value={remarkTags} onChange={e => setRemarkTags(e.target.value)}
+                  <input type="text" value={Array.isArray(remarkTags) ? remarkTags.join(", ") : remarkTags}
+                    onChange={e => setRemarkTags(e.target.value.split(",").map(t => t.trim()).filter(Boolean))}
                     placeholder="e.g. Meeting Scheduled, Follow-up, Important"
                     className="w-full p-2.5 rounded-xl border text-sm outline-none"
                     style={inputSt} />
@@ -709,9 +729,45 @@ export default function LeadDetails() {
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="block text-[11px] font-black uppercase tracking-wider mb-1.5" style={{ color: c.textSecondary }}>Tags (comma separated)</label>
-                  <input type="text" value={editForm.tags} onChange={e => setEditForm(f => ({ ...f, tags: e.target.value }))}
-                    placeholder="e.g. Hot Lead, Follow Up, Interested" className="w-full p-3 rounded-xl border text-sm outline-none font-medium" style={inputSt} />
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-[11px] font-black uppercase tracking-wider" style={{ color: c.textSecondary }}>Tags (Multi-select)</label>
+                    {editForm.tags && (
+                      <button type="button" onClick={() => setEditForm(f => ({ ...f, tags: "" }))} className="text-[10px] font-bold text-red-500 hover:underline">
+                        Clear all
+                      </button>
+                    )}
+                  </div>
+                  {settings.leadTags?.length > 0 ? (
+                    <div className="flex flex-wrap gap-2 p-3 rounded-xl border min-h-[48px]" style={{ ...inputSt, borderColor: c.border }}>
+                      {settings.leadTags.map(tag => {
+                        const currentTagsList = editForm.tags
+                          ? (Array.isArray(editForm.tags) ? editForm.tags : editForm.tags.split(",").map(t => t.trim()).filter(Boolean))
+                          : [];
+                        const selected = currentTagsList.includes(tag);
+                        return (
+                          <button key={tag} type="button"
+                            onClick={() => {
+                              const nextTags = selected
+                                ? currentTagsList.filter(t => t !== tag)
+                                : [...currentTagsList, tag];
+                              setEditForm(f => ({ ...f, tags: nextTags.join(", ") }));
+                            }}
+                            className="px-2.5 py-1 rounded-full text-[11px] font-bold border transition-all flex items-center gap-1.5"
+                            style={{
+                              backgroundColor: selected ? c.primary : c.background,
+                              color: selected ? "#fff" : c.textSecondary,
+                              borderColor: selected ? c.primary : c.border,
+                            }}>
+                            {selected && <CheckCircle2 size={11} />}
+                            {tag}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <input type="text" value={editForm.tags} onChange={e => setEditForm(f => ({ ...f, tags: e.target.value }))}
+                      placeholder="e.g. Hot Lead, Follow Up, Interested" className="w-full p-3 rounded-xl border text-sm outline-none font-medium" style={inputSt} />
+                  )}
                 </div>
               </div>
 

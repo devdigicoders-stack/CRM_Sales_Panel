@@ -1134,25 +1134,43 @@ export default function AssignedLeads() {
               </div>
 
               <div>
-                <label className="block text-[11px] font-black uppercase tracking-wider mb-1.5" style={{ color: c.textSecondary }}>Tags</label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-[11px] font-black uppercase tracking-wider" style={{ color: c.textSecondary }}>Tags (Multi-select)</label>
+                  {addLeadForm.tags?.length > 0 && (
+                    <button type="button" onClick={() => setAddLeadForm(f => ({ ...f, tags: [] }))} className="text-[10px] font-bold text-red-500 hover:underline">
+                      Clear ({addLeadForm.tags.length})
+                    </button>
+                  )}
+                </div>
                 <div className="flex flex-wrap gap-2 p-3 rounded-xl border min-h-[48px]" style={{ ...inputSt, borderColor: c.border }}>
                   {settingsLoading
                     ? <span className="text-xs" style={{ color: c.textSecondary }}>Loading tags…</span>
-                    : settings.leadTags.map(tag => {
-                        const selected = addLeadForm.tags[0] === tag;
-                        return (
-                          <button key={tag} type="button"
-                            onClick={() => setAddLeadForm(f => ({ ...f, tags: selected ? [] : [tag] }))}
-                            className="px-2.5 py-1 rounded-full text-[11px] font-bold border transition-all"
-                            style={{
-                              backgroundColor: selected ? c.primary : c.background,
-                              color: selected ? "#fff" : c.textSecondary,
-                              borderColor: selected ? c.primary : c.border,
-                            }}>
-                            {tag}
-                          </button>
-                        );
-                      })
+                    : settings.leadTags?.length > 0 ? (
+                        settings.leadTags.map(tag => {
+                          const selected = (addLeadForm.tags || []).includes(tag);
+                          return (
+                            <button key={tag} type="button"
+                              onClick={() => setAddLeadForm(f => {
+                                const cur = f.tags || [];
+                                return {
+                                  ...f,
+                                  tags: selected ? cur.filter(t => t !== tag) : [...cur, tag]
+                                };
+                              })}
+                              className="px-2.5 py-1 rounded-full text-[11px] font-bold border transition-all flex items-center gap-1.5"
+                              style={{
+                                backgroundColor: selected ? c.primary : c.background,
+                                color: selected ? "#fff" : c.textSecondary,
+                                borderColor: selected ? c.primary : c.border,
+                              }}>
+                              {selected && <CheckCircle2 size={11} />}
+                              {tag}
+                            </button>
+                          );
+                        })
+                      ) : (
+                        <span className="text-xs" style={{ color: c.textSecondary }}>No tags available</span>
+                      )
                   }
                 </div>
               </div>
@@ -1302,9 +1320,45 @@ export default function AssignedLeads() {
                 </div>
 
                 <div className="sm:col-span-2">
-                  <label className="block text-[11px] font-black uppercase tracking-wider mb-1.5" style={{ color: c.textSecondary }}>Tags (comma separated)</label>
-                  <input type="text" value={editForm.tags} onChange={e => setEditForm(f => ({ ...f, tags: e.target.value }))}
-                    placeholder="e.g. Hot Lead, Follow Up, Interested" className="w-full p-3 rounded-xl border text-sm outline-none font-medium" style={inputSt} />
+                  <div className="flex items-center justify-between mb-1.5">
+                    <label className="block text-[11px] font-black uppercase tracking-wider" style={{ color: c.textSecondary }}>Tags (Multi-select)</label>
+                    {editForm.tags && (
+                      <button type="button" onClick={() => setEditForm(f => ({ ...f, tags: "" }))} className="text-[10px] font-bold text-red-500 hover:underline">
+                        Clear all
+                      </button>
+                    )}
+                  </div>
+                  {settings.leadTags?.length > 0 ? (
+                    <div className="flex flex-wrap gap-2 p-3 rounded-xl border min-h-[48px]" style={{ ...inputSt, borderColor: c.border }}>
+                      {settings.leadTags.map(tag => {
+                        const currentTagsList = editForm.tags
+                          ? (Array.isArray(editForm.tags) ? editForm.tags : editForm.tags.split(",").map(t => t.trim()).filter(Boolean))
+                          : [];
+                        const selected = currentTagsList.includes(tag);
+                        return (
+                          <button key={tag} type="button"
+                            onClick={() => {
+                              const nextTags = selected
+                                ? currentTagsList.filter(t => t !== tag)
+                                : [...currentTagsList, tag];
+                              setEditForm(f => ({ ...f, tags: nextTags.join(", ") }));
+                            }}
+                            className="px-2.5 py-1 rounded-full text-[11px] font-bold border transition-all flex items-center gap-1.5"
+                            style={{
+                              backgroundColor: selected ? c.primary : c.background,
+                              color: selected ? "#fff" : c.textSecondary,
+                              borderColor: selected ? c.primary : c.border,
+                            }}>
+                            {selected && <CheckCircle2 size={11} />}
+                            {tag}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <input type="text" value={editForm.tags} onChange={e => setEditForm(f => ({ ...f, tags: e.target.value }))}
+                      placeholder="e.g. Hot Lead, Follow Up, Interested" className="w-full p-3 rounded-xl border text-sm outline-none font-medium" style={inputSt} />
+                  )}
                 </div>
               </div>
 
