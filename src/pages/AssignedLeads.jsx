@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import WhatsAppChooserModal from '../components/WhatsAppChooserModal';
 import { useTheme } from "../context/ThemeContext";
 import { leadAPI } from "../api/lead";
@@ -7,7 +7,7 @@ import {
   Users, Phone, Mail, RefreshCw, AlertCircle,
   ChevronLeft, ChevronRight, Eye, UserCheck,
   Search, LayoutGrid, Table2, TrendingUp,
-  PhoneCall, MessageCircle, Tag, X, FileText, Send, Calendar, Upload, ArrowRight, Truck, Plus, Star, CheckCircle2, Edit
+  PhoneCall, MessageCircle, Tag, X, FileText, Send, Calendar, Upload, ArrowRight, Truck, Plus, Star, CheckCircle2, Edit, ChevronDown, Check
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -62,7 +62,11 @@ export default function AssignedLeads() {
   const [total, setTotal]     = useState(0);
   const [search, setSearch]   = useState("");
   const [status, setStatus]   = useState("all");
-  const [selectedTag, setSelectedTag] = useState("all");
+  const [selectedTags, setSelectedTags] = useState([]);
+  const [tagDropdownOpen, setTagDropdownOpen] = useState(false);
+  const [tagSearch, setTagSearch] = useState("");
+  const tagDropdownRef = useRef(null);
+
   const [dateFilter, setDateFilter]             = useState("");
   const [view, setView]       = useState("table");
   const [callTab, setCallTab] = useState("pending");
@@ -96,7 +100,17 @@ export default function AssignedLeads() {
 
   const PAGE_SIZE = 50;
 
-  useEffect(() => { fetchLeads(1); }, [status, callTab, dateFilter, selectedTag]);
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (tagDropdownRef.current && !tagDropdownRef.current.contains(e.target)) {
+        setTagDropdownOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => { fetchLeads(1); }, [status, callTab, dateFilter, selectedTags]);
 
   const fetchLeads = async (pageNum = page) => {
     try {
@@ -104,7 +118,7 @@ export default function AssignedLeads() {
       const params = { page: pageNum, limit: PAGE_SIZE };
       if (status !== "all") params.status = status;
       if (dateFilter) params.createdAt = dateFilter;
-      if (selectedTag !== "all") params.tag = selectedTag;
+      if (selectedTags.length > 0) params.tag = selectedTags.join(",");
       params.isCallDone = callTab === "done" ? "true" : "false";
       if (search.trim()) params.search = search.trim();
 
@@ -543,14 +557,129 @@ export default function AssignedLeads() {
           ))}
         </select>
         {settings.leadTags?.length > 0 && (
-          <select value={selectedTag} onChange={e => { setSelectedTag(e.target.value); setPage(1); }}
-            className="px-4 py-2.5 rounded-xl border text-sm font-semibold outline-none"
-            style={inputSt}>
-            <option value="all">ALL TAGS</option>
-            {settings.leadTags.map(t => (
-              <option key={t} value={t}>{t.toUpperCase()}</option>
-            ))}
-          </select>
+          <div className="relative" ref={tagDropdownRef}>
+            <button
+              type="button"
+              onClick={() => setTagDropdownOpen(!tagDropdownOpen)}
+              className="flex items-center justify-between gap-2 px-4 py-2.5 rounded-xl border text-sm font-semibold transition-all min-w-[145px] cursor-pointer"
+              style={{
+                ...inputSt,
+                borderColor: selectedTags.length > 0 ? c.primary : c.border,
+                backgroundColor: selectedTags.length > 0 && isDark ? `${c.primary}15` : (selectedTags.length > 0 ? `${c.primary}08` : inputSt.backgroundColor),
+              }}
+            >
+              <div className="flex items-center gap-1.5 truncate">
+                <Tag size={13} style={{ color: selectedTags.length > 0 ? c.primary : c.textSecondary }} />
+                <span className="truncate" style={{ color: selectedTags.length > 0 ? c.primary : c.text }}>
+                  {selectedTags.length === 0
+                    ? "ALL TAGS"
+                    : selectedTags.length === 1
+                    ? selectedTags[0].toUpperCase()
+                    : `${selectedTags.length} TAGS`}
+                </span>
+              </div>
+              <ChevronDown size={14} className={`transition-transform duration-200 shrink-0 ${tagDropdownOpen ? "rotate-180" : ""}`} style={{ color: c.textSecondary }} />
+            </button>
+
+            {tagDropdownOpen && (
+              <div
+                className="absolute left-0 top-full mt-2 w-64 max-h-80 rounded-2xl border shadow-2xl z-50 flex flex-col overflow-hidden"
+                style={{ backgroundColor: c.surface, borderColor: c.border }}
+              >
+                {/* Header with Search & Reset */}
+                <div className="p-2.5 border-b flex flex-col gap-2" style={{ borderColor: c.border }}>
+                  <div className="flex items-center justify-between px-1">
+                    <span className="text-[11px] font-black uppercase tracking-wider" style={{ color: c.textSecondary }}>
+                      Filter by Tags ({selectedTags.length})
+                    </span>
+                    {selectedTags.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => { setSelectedTags([]); setPage(1); }}
+                        className="text-[10px] font-bold text-red-500 hover:underline cursor-pointer"
+                      >
+                        Reset All
+                      </button>
+                    )}
+                  </div>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      placeholder="Search tags..."
+                      value={tagSearch}
+                      onChange={e => setTagSearch(e.target.value)}
+                      className="w-full pl-7 pr-6 py-1.5 text-xs rounded-lg border outline-none font-medium"
+                      style={inputSt}
+                    />
+                    <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2" style={{ color: c.textSecondary }} />
+                    {tagSearch && (
+                      <button type="button" onClick={() => setTagSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 cursor-pointer">
+                        <X size={11} style={{ color: c.textSecondary }} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* List of tag checkboxes */}
+                <div className="overflow-y-auto p-1.5 space-y-0.5 flex-1 max-h-52">
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedTags([]); setPage(1); }}
+                    className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-colors text-left cursor-pointer"
+                    style={{
+                      backgroundColor: selectedTags.length === 0 ? (isDark ? `${c.primary}20` : `${c.primary}10`) : "transparent",
+                      color: selectedTags.length === 0 ? c.primary : c.text,
+                    }}
+                  >
+                    <span>ALL TAGS</span>
+                    {selectedTags.length === 0 && <CheckCircle2 size={13} style={{ color: c.primary }} />}
+                  </button>
+
+                  {settings.leadTags
+                    .filter(t => t.toLowerCase().includes(tagSearch.toLowerCase()))
+                    .map(t => {
+                      const isSelected = selectedTags.includes(t);
+                      return (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => {
+                            setSelectedTags(prev => {
+                              const next = isSelected ? prev.filter(item => item !== t) : [...prev, t];
+                              return next;
+                            });
+                            setPage(1);
+                          }}
+                          className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-colors text-left cursor-pointer"
+                          style={{
+                            backgroundColor: isSelected ? (isDark ? `${c.primary}20` : `${c.primary}10`) : "transparent",
+                            color: isSelected ? c.primary : c.text,
+                          }}
+                        >
+                          <div className="flex items-center gap-2 truncate">
+                            <div
+                              className="w-3.5 h-3.5 rounded border flex items-center justify-center transition-all shrink-0"
+                              style={{
+                                borderColor: isSelected ? c.primary : c.border,
+                                backgroundColor: isSelected ? c.primary : "transparent",
+                              }}
+                            >
+                              {isSelected && <Check size={10} color="#fff" strokeWidth={3} />}
+                            </div>
+                            <span className="truncate">{t.toUpperCase()}</span>
+                          </div>
+                          {isSelected && (
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: `${c.primary}25`, color: c.primary }}>
+                              Selected
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                </div>
+              </div>
+            )}
+          </div>
         )}
         <input 
           type="date"
