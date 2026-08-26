@@ -7,7 +7,7 @@ import {
   ArrowLeft, Phone, Mail, MessageSquare,
   Save, RefreshCw, AlertCircle, CheckCircle2,
   User, Tag, IndianRupee, Send, Wrench,
-  PhoneCall, Clock, ExternalLink, Calendar, Edit, X
+  PhoneCall, Clock, ExternalLink, Calendar, Edit, X, Plus
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -24,6 +24,11 @@ export default function LeadDetails() {
   const [settings, setSettings]   = useState({ leadTags: [] });
   const [loading, setLoading]     = useState(true);
   const [activeTab, setActiveTab] = useState("overview");
+
+  // Tag Management
+  const [tagModal, setTagModal]             = useState(false);
+  const [customTagInput, setCustomTagInput] = useState("");
+  const [savingTag, setSavingTag]           = useState(false);
 
   // Remark
   const [remarkNote, setRemarkNote]       = useState("");
@@ -42,6 +47,41 @@ export default function LeadDetails() {
     name: "", phone: "", email: "", address: "", source: "", status: "new", priority: "medium", tags: ""
   });
   const [updatingLead, setUpdatingLead] = useState(false);
+
+  const handleRemoveTag = async (tagToRemove, e) => {
+    e?.stopPropagation();
+    try {
+      const currentTags = Array.isArray(lead?.tags) ? lead.tags : [];
+      const updatedTags = currentTags.filter(t => t !== tagToRemove);
+      await leadAPI.updateLead(id, { tags: updatedTags });
+      setLead(prev => ({ ...prev, tags: updatedTags }));
+      toast.success(`Tag "${tagToRemove}" removed!`);
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to remove tag.");
+    }
+  };
+
+  const handleToggleTag = async (tag) => {
+    if (!tag || !tag.trim()) return;
+    const tagClean = tag.trim();
+    const currentTags = Array.isArray(lead?.tags) ? lead.tags : [];
+    const isPresent = currentTags.some(t => t.toLowerCase() === tagClean.toLowerCase());
+    const updatedTags = isPresent
+      ? currentTags.filter(t => t.toLowerCase() !== tagClean.toLowerCase())
+      : [...currentTags, tagClean];
+
+    setSavingTag(true);
+    try {
+      await leadAPI.updateLead(id, { tags: updatedTags });
+      setLead(prev => ({ ...prev, tags: updatedTags }));
+      toast.success(isPresent ? `Tag "${tagClean}" removed` : `Tag "${tagClean}" added!`);
+      setCustomTagInput("");
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to update tags.");
+    } finally {
+      setSavingTag(false);
+    }
+  };
 
   const openEditModal = () => {
     if (!lead) return;
@@ -378,19 +418,49 @@ export default function LeadDetails() {
               </div>
             )}
 
-            {lead.tags?.length > 0 && (
-              <div className="rounded-2xl border p-5" style={{ backgroundColor: c.surface, borderColor: c.border }}>
-                <p className="text-sm font-black uppercase tracking-wider mb-3" style={{ color: c.textSecondary }}>Tags</p>
-                <div className="flex flex-wrap gap-2">
+            {/* Tags Section */}
+            <div className="rounded-2xl border p-5 space-y-3" style={{ backgroundColor: c.surface, borderColor: c.border }}>
+              <div className="flex items-center justify-between">
+                <p className="text-sm font-black uppercase tracking-wider flex items-center gap-1.5" style={{ color: c.textSecondary }}>
+                  <Tag size={13} style={{ color: c.primary }} /> Tags ({lead.tags?.length || 0})
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setTagModal(true)}
+                  className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold transition-all hover:scale-105 border"
+                  style={{ backgroundColor: isDark ? `${c.primary}20` : "#eff6ff", borderColor: "#bfdbfe", color: c.primary }}>
+                  <Plus size={12} /> Manage Tags
+                </button>
+              </div>
+
+              {lead.tags && lead.tags.length > 0 ? (
+                <div className="flex flex-wrap gap-2 pt-1">
                   {lead.tags.map((tag, i) => (
-                    <span key={i} className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold border"
-                      style={{ backgroundColor: isDark ? `${c.primary}20` : "#eff6ff", borderColor: "#bfdbfe", color: "#1d4ed8" }}>
+                    <span
+                      key={i}
+                      className="inline-flex items-center gap-1.5 pl-3 pr-1.5 py-1 rounded-full text-xs font-bold border transition-all"
+                      style={{
+                        backgroundColor: isDark ? `${c.primary}20` : "#eff6ff",
+                        borderColor: "#bfdbfe",
+                        color: isDark ? "#93c5fd" : "#1d4ed8",
+                      }}>
                       <Tag size={10} /> {tag}
+                      <button
+                        type="button"
+                        onClick={(e) => handleRemoveTag(tag, e)}
+                        className="p-0.5 rounded-full hover:bg-red-500 hover:text-white transition-colors"
+                        title={`Remove "${tag}"`}>
+                        <X size={11} />
+                      </button>
                     </span>
                   ))}
                 </div>
-              </div>
-            )}
+              ) : (
+                <p className="text-xs italic" style={{ color: c.textSecondary }}>
+                  No tags added yet. Click &quot;Manage Tags&quot; to add tags.
+                </p>
+              )}
+            </div>
 
             {/* Action Buttons */}
             <div className="rounded-2xl border p-5 space-y-3" style={{ backgroundColor: c.surface, borderColor: c.border }}>
@@ -788,6 +858,129 @@ export default function LeadDetails() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Manage Tags Modal */}
+      {tagModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+          onClick={e => e.target === e.currentTarget && setTagModal(false)}>
+          <div className="w-full max-w-md rounded-3xl shadow-2xl overflow-hidden" style={{ backgroundColor: c.surface }}>
+            <div className="flex items-center justify-between px-6 py-4 border-b"
+              style={{ borderColor: c.border, backgroundColor: isDark ? `${c.background}99` : `${c.background}70` }}>
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: "#eff6ff", color: "#2563eb" }}>
+                  <Tag size={16} />
+                </div>
+                <div>
+                  <h3 className="font-black text-base" style={{ color: c.text }}>Manage Tags</h3>
+                  <p className="text-xs" style={{ color: c.textSecondary }}>Add or remove tags for {lead?.name}</p>
+                </div>
+              </div>
+              <button onClick={() => setTagModal(false)} className="w-8 h-8 rounded-full flex items-center justify-center hover:opacity-80" style={{ backgroundColor: "#fee2e2", color: "#dc2626" }}>
+                <X size={15} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {/* Custom Tag Input */}
+              <div>
+                <label className="block text-[11px] font-black uppercase tracking-wider mb-1.5" style={{ color: c.textSecondary }}>
+                  Add Custom Tag
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={customTagInput}
+                    onChange={e => setCustomTagInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        handleToggleTag(customTagInput);
+                      }
+                    }}
+                    placeholder="Type tag name and press Add..."
+                    className="flex-1 px-3 py-2 rounded-xl border text-sm outline-none font-medium"
+                    style={inputSt}
+                  />
+                  <button
+                    type="button"
+                    disabled={!customTagInput.trim() || savingTag}
+                    onClick={() => handleToggleTag(customTagInput)}
+                    className="px-4 py-2 rounded-xl text-xs font-bold text-white transition-all disabled:opacity-50 hover:opacity-90 flex items-center gap-1"
+                    style={{ backgroundColor: c.primary }}>
+                    <Plus size={13} /> Add
+                  </button>
+                </div>
+              </div>
+
+              {/* Available System Tags */}
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-wider mb-2" style={{ color: c.textSecondary }}>
+                  Available Preset Tags (Click to toggle)
+                </p>
+                <div className="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-1">
+                  {settings.leadTags?.length > 0 ? (
+                    settings.leadTags.map(tag => {
+                      const isSelected = (lead?.tags || []).some(t => t.toLowerCase() === tag.toLowerCase());
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          disabled={savingTag}
+                          onClick={() => handleToggleTag(tag)}
+                          className="px-3 py-1.5 rounded-full text-xs font-bold border transition-all flex items-center gap-1.5 active:scale-95"
+                          style={{
+                            backgroundColor: isSelected ? (isDark ? `${c.primary}30` : "#eff6ff") : c.background,
+                            color: isSelected ? (isDark ? "#93c5fd" : "#1d4ed8") : c.textSecondary,
+                            borderColor: isSelected ? c.primary : c.border,
+                            boxShadow: isSelected ? "0 1px 4px rgba(0,0,0,0.1)" : "none",
+                          }}>
+                          {isSelected ? <CheckCircle2 size={12} style={{ color: c.primary }} /> : <Plus size={12} />}
+                          {tag}
+                          {isSelected && <X size={11} className="text-red-500 hover:scale-125 ml-0.5" />}
+                        </button>
+                      );
+                    })
+                  ) : (
+                    <p className="text-xs" style={{ color: c.textSecondary }}>No preset tags configured in settings.</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Current Tags Summary */}
+              <div className="pt-3 border-t" style={{ borderColor: c.border }}>
+                <p className="text-[11px] font-black uppercase tracking-wider mb-2" style={{ color: c.textSecondary }}>
+                  Active Tags on Lead ({lead?.tags?.length || 0})
+                </p>
+                <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto">
+                  {lead?.tags && lead.tags.length > 0 ? (
+                    lead.tags.map((t, idx) => (
+                      <span key={idx} className="inline-flex items-center gap-1 pl-3 pr-1.5 py-1 rounded-full text-xs font-bold border"
+                        style={{ backgroundColor: isDark ? `${c.primary}20` : "#eff6ff", borderColor: "#bfdbfe", color: isDark ? "#93c5fd" : "#1d4ed8" }}>
+                        <Tag size={10} /> {t}
+                        <button type="button" onClick={(e) => handleRemoveTag(t, e)} className="p-0.5 rounded-full hover:bg-red-500 hover:text-white transition-colors ml-0.5">
+                          <X size={11} />
+                        </button>
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-xs italic" style={{ color: c.textSecondary }}>No tags attached to this lead</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end p-4 border-t" style={{ borderColor: c.border, backgroundColor: isDark ? `${c.background}60` : `${c.background}40` }}>
+              <button
+                type="button"
+                onClick={() => setTagModal(false)}
+                className="px-6 py-2 rounded-xl text-xs font-bold text-white shadow-sm hover:opacity-90 transition-all"
+                style={{ backgroundColor: c.primary }}>
+                Done
+              </button>
+            </div>
           </div>
         </div>
       )}
