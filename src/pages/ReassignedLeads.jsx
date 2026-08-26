@@ -4,7 +4,8 @@ import { leadAPI } from "../api/lead";
 import { useNavigate } from "react-router-dom";
 import {
   Phone, RefreshCw, AlertCircle, ChevronRight,
-  Eye, Search, PhoneCall, CheckCircle2, FileText, Send, Calendar, X, Tag, Star
+  Eye, Search, PhoneCall, CheckCircle2, FileText, Send, Calendar, X, Tag, Star,
+  RotateCcw, ArrowRight, Filter
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -22,6 +23,38 @@ const statusConfig = {
   closed:         { bg: "#f9fafb", color: "#374151", border: "#e5e7eb" },
   not_interested: { bg: "#fef2f2", color: "#991b1b", border: "#fecaca" },
   call_done:      { bg: "#e0f2fe", color: "#0369a1", border: "#bae6fd" },
+};
+
+const formatDateForInput = (d) => {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+const getPresetDates = (preset) => {
+  const now = new Date();
+  const todayStr = formatDateForInput(now);
+
+  if (preset === "today") {
+    return { start: todayStr, end: todayStr };
+  }
+  if (preset === "yesterday") {
+    const y = new Date();
+    y.setDate(y.getDate() - 1);
+    const yStr = formatDateForInput(y);
+    return { start: yStr, end: yStr };
+  }
+  if (preset === "this_week") {
+    const w = new Date();
+    w.setDate(w.getDate() - 6);
+    return { start: formatDateForInput(w), end: todayStr };
+  }
+  if (preset === "this_month") {
+    const m = new Date(now.getFullYear(), now.getMonth(), 1);
+    return { start: formatDateForInput(m), end: todayStr };
+  }
+  return { start: "", end: "" };
 };
 
 const StatusBadge = ({ status }) => {
@@ -49,13 +82,16 @@ export default function ReassignedLeads() {
   const navigate = useNavigate();
   const isDark = c.mode === "dark";
 
-  const [leads, setLeads]         = useState([]);
-  const [loading, setLoading]     = useState(true);
+  const [leads, setLeads]             = useState([]);
+  const [loading, setLoading]         = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [error, setError]         = useState(null);
-  const [page, setPage]           = useState(1);
-  const [hasMore, setHasMore]     = useState(false);
-  const [search, setSearch]       = useState("");
+  const [error, setError]             = useState(null);
+  const [page, setPage]               = useState(1);
+  const [hasMore, setHasMore]         = useState(false);
+  const [search, setSearch]           = useState("");
+  const [startDate, setStartDate]     = useState("");
+  const [endDate, setEndDate]         = useState("");
+  const [activeDatePreset, setActiveDatePreset] = useState("all");
 
   const [remarkModal, setRemarkModal]   = useState(false);
   const [remarkLead, setRemarkLead]     = useState(null);
@@ -71,13 +107,16 @@ export default function ReassignedLeads() {
 
   useEffect(() => { fetchLeads(1, true); }, []);
 
-  // Fetch page-by-page directly with server-side isReassigned filter
-  const fetchLeads = async (pageNum = 1, reset = false) => {
+  // Fetch page-by-page directly with server-side isReassigned filter & date filters
+  const fetchLeads = async (pageNum = 1, reset = false, sDate = startDate, eDate = endDate, qSearch = search) => {
     try {
       reset ? setLoading(true) : setLoadingMore(true);
       setError(null);
       const params = { page: pageNum, limit: PAGE_SIZE, isReassigned: true };
-      if (search.trim()) params.search = search.trim();
+      if (qSearch && qSearch.trim()) params.search = qSearch.trim();
+      if (sDate) params.startDate = sDate;
+      if (eDate) params.endDate = eDate;
+
       const res = await leadAPI.getAllLeads(params);
       const batch = res?.data?.leads || [];
       const totalPages = res?.pages || 1;
@@ -90,12 +129,47 @@ export default function ReassignedLeads() {
     } finally { setLoading(false); setLoadingMore(false); }
   };
 
+  const handlePresetClick = (preset) => {
+    setActiveDatePreset(preset);
+    if (preset === "all") {
+      setStartDate("");
+      setEndDate("");
+      fetchLeads(1, true, "", "", search);
+    } else {
+      const { start, end } = getPresetDates(preset);
+      setStartDate(start);
+      setEndDate(end);
+      fetchLeads(1, true, start, end, search);
+    }
+  };
+
+  const handleStartDateChange = (e) => {
+    const val = e.target.value;
+    setStartDate(val);
+    setActiveDatePreset("custom");
+    fetchLeads(1, true, val, endDate, search);
+  };
+
+  const handleEndDateChange = (e) => {
+    const val = e.target.value;
+    setEndDate(val);
+    setActiveDatePreset("custom");
+    fetchLeads(1, true, startDate, val, search);
+  };
+
+  const handleClearDates = () => {
+    setStartDate("");
+    setEndDate("");
+    setActiveDatePreset("all");
+    fetchLeads(1, true, "", "", search);
+  };
+
   const handleMarkCallDone = async (lead, e) => {
     e?.stopPropagation();
     try {
       await leadAPI.updateLead(lead._id, { isCallDone: true });
       toast.success("Marked as call done!");
-      fetchLeads();
+      fetchLeads(1, true, startDate, endDate, search);
     } catch (err) {
       toast.error(err?.response?.data?.message || "Failed to mark call done.");
     }
@@ -141,7 +215,7 @@ export default function ReassignedLeads() {
       await leadAPI.updateLead(statusLead._id, { status: newStatus });
       toast.success("Status updated!");
       setStatusModal(false);
-      fetchLeads();
+      fetchLeads(1, true, startDate, endDate, search);
     } catch (err) {
       toast.error(err?.response?.data?.message || "Failed to update status.");
     } finally { setUpdatingStatus(false); }
@@ -170,7 +244,7 @@ export default function ReassignedLeads() {
     <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center">
       <AlertCircle size={40} color="#dc2626" />
       <p style={{ color: c.text }}>{error}</p>
-      <button onClick={fetchLeads} className="px-5 py-2.5 rounded-xl text-sm font-bold text-white"
+      <button onClick={() => fetchLeads(1, true, startDate, endDate, search)} className="px-5 py-2.5 rounded-xl text-sm font-bold text-white"
         style={{ backgroundColor: c.primary }}>
         <RefreshCw size={14} className="inline mr-2" /> Retry
       </button>
@@ -187,31 +261,126 @@ export default function ReassignedLeads() {
             Reassigned Leads
           </h1>
           <p className="mt-1 text-sm" style={{ color: c.textSecondary }}>
-            {leads.length} leads reassigned to you — call them now
+            {leads.length} leads reassigned to you {startDate || endDate ? `(filtered ${activeDatePreset !== "custom" && activeDatePreset !== "all" ? `• ${activeDatePreset.replace("_", " ")}` : ""})` : "— call them now"}
           </p>
         </div>
-        <button onClick={() => fetchLeads(1, true)}
+        <button onClick={() => fetchLeads(1, true, startDate, endDate, search)}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border transition-all hover:opacity-80"
           style={{ borderColor: c.border, color: c.textSecondary, backgroundColor: c.surface }}>
           <RefreshCw size={14} /> Refresh
         </button>
       </div>
 
-      {/* Search */}
-      <div className="flex gap-3 p-4 rounded-2xl border" style={{ backgroundColor: c.surface, borderColor: c.border }}>
-        <div className="relative flex-1">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: c.textSecondary }} />
-          <input value={search} onChange={e => { setSearch(e.target.value); if (e.target.value === "") fetchLeads(1, true); }}
-            onKeyDown={e => e.key === "Enter" && fetchLeads(1, true)}
-            placeholder="Search by name, phone, email... (press Enter)"
-            className="w-full pl-9 pr-8 py-2.5 rounded-xl border text-sm outline-none"
-            style={inputSt} />
-          {search && (
-            <button onClick={() => { setSearch(""); fetchLeads(1, true); }}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:opacity-80"
-              style={{ color: c.textSecondary }}>
-              <X size={14} />
-            </button>
+      {/* Search & Date Filter Card */}
+      <div className="p-4 sm:p-5 rounded-2xl border space-y-3.5 shadow-sm" style={{ backgroundColor: c.surface, borderColor: c.border }}>
+        {/* Row 1: Search bar + Quick Date Presets */}
+        <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between">
+          <div className="relative flex-1">
+            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: c.textSecondary }} />
+            <input value={search} onChange={e => { setSearch(e.target.value); if (e.target.value === "") fetchLeads(1, true, startDate, endDate, ""); }}
+              onKeyDown={e => e.key === "Enter" && fetchLeads(1, true, startDate, endDate, search)}
+              placeholder="Search by name, phone, email... (press Enter)"
+              className="w-full pl-10 pr-9 py-2.5 rounded-xl border text-sm outline-none transition-all focus:ring-2 focus:ring-primary/20"
+              style={inputSt} />
+            {search && (
+              <button onClick={() => { setSearch(""); fetchLeads(1, true, startDate, endDate, ""); }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:opacity-80"
+                style={{ color: c.textSecondary }}>
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          {/* Quick Date Presets */}
+          <div className="flex flex-wrap items-center gap-1.5 p-1 rounded-xl border" style={{ backgroundColor: c.background, borderColor: c.border }}>
+            {[
+              { id: "all", label: "All" },
+              { id: "today", label: "Today" },
+              { id: "yesterday", label: "Yesterday" },
+              { id: "this_week", label: "This Week" },
+              { id: "this_month", label: "This Month" },
+            ].map(p => {
+              const isSelected = activeDatePreset === p.id;
+              return (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => handlePresetClick(p.id)}
+                  className="px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap"
+                  style={{
+                    backgroundColor: isSelected ? c.primary : "transparent",
+                    color: isSelected ? "#fff" : c.textSecondary,
+                    boxShadow: isSelected ? "0 2px 6px rgba(0,0,0,0.12)" : "none",
+                  }}>
+                  {p.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Row 2: From Date -> To Date Pickers + Action Buttons */}
+        <div className="flex flex-col sm:flex-row flex-wrap items-center justify-between gap-3 pt-3 border-t" style={{ borderColor: isDark ? `${c.border}50` : `${c.border}80` }}>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 w-full sm:w-auto">
+            <span className="text-xs font-black uppercase tracking-wider flex items-center gap-1.5" style={{ color: c.textSecondary }}>
+              <Calendar size={13} style={{ color: c.primary }} /> Date Range:
+            </span>
+
+            {/* From Date */}
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border" style={{ backgroundColor: c.background, borderColor: c.border }}>
+              <span className="text-[11px] font-bold" style={{ color: c.textSecondary }}>From:</span>
+              <input
+                type="date"
+                value={startDate}
+                onChange={handleStartDateChange}
+                className="bg-transparent text-xs font-semibold outline-none cursor-pointer"
+                style={{ color: c.text }}
+              />
+            </div>
+
+            <ArrowRight size={13} style={{ color: c.textSecondary }} className="hidden sm:block" />
+
+            {/* To Date */}
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border" style={{ backgroundColor: c.background, borderColor: c.border }}>
+              <span className="text-[11px] font-bold" style={{ color: c.textSecondary }}>To:</span>
+              <input
+                type="date"
+                value={endDate}
+                onChange={handleEndDateChange}
+                className="bg-transparent text-xs font-semibold outline-none cursor-pointer"
+                style={{ color: c.text }}
+              />
+            </div>
+
+            {/* Clear / Reset Date Filter button */}
+            {(startDate || endDate || activeDatePreset !== "all") && (
+              <button
+                type="button"
+                onClick={handleClearDates}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all hover:opacity-80"
+                style={{ backgroundColor: isDark ? "#374151" : "#f3f4f6", color: isDark ? "#d1d5db" : "#4b5563" }}
+                title="Clear date filter">
+                <RotateCcw size={12} /> Reset
+              </button>
+            )}
+          </div>
+
+          {/* Active Filter Info Badge */}
+          {(startDate || endDate) && (
+            <div className="flex items-center gap-2 text-xs font-semibold" style={{ color: c.primary }}>
+              <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: c.primary }} />
+              <span>
+                {startDate === endDate && startDate ? (
+                  <>Selected: {new Date(startDate + "T00:00:00").toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}</>
+                ) : (
+                  <>
+                    {startDate ? new Date(startDate + "T00:00:00").toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "Start"}
+                    {" → "}
+                    {endDate ? new Date(endDate + "T00:00:00").toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "End"}
+                  </>
+                )}
+              </span>
+            </div>
           )}
         </div>
       </div>
@@ -222,7 +391,7 @@ export default function ReassignedLeads() {
           <span className="text-5xl">📞</span>
           <p className="font-bold text-lg mt-3" style={{ color: c.text }}>No reassigned leads</p>
           <p className="text-sm mt-1" style={{ color: c.textSecondary }}>
-            {search ? "Try adjusting your search" : "You have no reassigned leads right now"}
+            {search || startDate || endDate ? "Try adjusting your search or date filter" : "You have no reassigned leads right now"}
           </p>
         </div>
       )}
