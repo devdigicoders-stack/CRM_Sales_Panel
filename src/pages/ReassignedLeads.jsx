@@ -25,6 +25,17 @@ const statusConfig = {
   call_done:      { bg: "#e0f2fe", color: "#0369a1", border: "#bae6fd" },
 };
 
+const STATUS_OPTS = [
+  { value: "all", label: "All Status" },
+  { value: "assigned", label: "Assigned" },
+  { value: "interested", label: "Interested" },
+  { value: "in_process", label: "In Process" },
+  { value: "converted", label: "Converted" },
+  { value: "closed", label: "Closed" },
+  { value: "not_interested", label: "Not Interested" },
+  { value: "call_done", label: "Call Done" },
+];
+
 const formatDateForInput = (d) => {
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, "0");
@@ -83,12 +94,14 @@ export default function ReassignedLeads() {
   const isDark = c.mode === "dark";
 
   const [leads, setLeads]             = useState([]);
+  const [total, setTotal]             = useState(0);
   const [loading, setLoading]         = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError]             = useState(null);
   const [page, setPage]               = useState(1);
   const [hasMore, setHasMore]         = useState(false);
   const [search, setSearch]           = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
   const [startDate, setStartDate]     = useState("");
   const [endDate, setEndDate]         = useState("");
   const [activeDatePreset, setActiveDatePreset] = useState("all");
@@ -108,7 +121,7 @@ export default function ReassignedLeads() {
   useEffect(() => { fetchLeads(1, true); }, []);
 
   // Fetch page-by-page directly with server-side isReassigned filter & date filters
-  const fetchLeads = async (pageNum = 1, reset = false, sDate = startDate, eDate = endDate, qSearch = search) => {
+  const fetchLeads = async (pageNum = 1, reset = false, sDate = startDate, eDate = endDate, qSearch = search, st = statusFilter) => {
     try {
       reset ? setLoading(true) : setLoadingMore(true);
       setError(null);
@@ -116,11 +129,13 @@ export default function ReassignedLeads() {
       if (qSearch && qSearch.trim()) params.search = qSearch.trim();
       if (sDate) params.startDate = sDate;
       if (eDate) params.endDate = eDate;
+      if (st && st !== "all") params.status = st;
 
       const res = await leadAPI.getAllLeads(params);
       const batch = res?.data?.leads || [];
       const totalPages = res?.pages || 1;
       setLeads(prev => reset ? batch : [...prev, ...batch]);
+      setTotal(res?.total ?? (reset ? batch.length : total + batch.length));
       setPage(pageNum);
       setHasMore(pageNum < totalPages);
     } catch {
@@ -134,12 +149,12 @@ export default function ReassignedLeads() {
     if (preset === "all") {
       setStartDate("");
       setEndDate("");
-      fetchLeads(1, true, "", "", search);
+      fetchLeads(1, true, "", "", search, statusFilter);
     } else {
       const { start, end } = getPresetDates(preset);
       setStartDate(start);
       setEndDate(end);
-      fetchLeads(1, true, start, end, search);
+      fetchLeads(1, true, start, end, search, statusFilter);
     }
   };
 
@@ -147,21 +162,27 @@ export default function ReassignedLeads() {
     const val = e.target.value;
     setStartDate(val);
     setActiveDatePreset("custom");
-    fetchLeads(1, true, val, endDate, search);
+    fetchLeads(1, true, val, endDate, search, statusFilter);
   };
 
   const handleEndDateChange = (e) => {
     const val = e.target.value;
     setEndDate(val);
     setActiveDatePreset("custom");
-    fetchLeads(1, true, startDate, val, search);
+    fetchLeads(1, true, startDate, val, search, statusFilter);
   };
 
   const handleClearDates = () => {
     setStartDate("");
     setEndDate("");
     setActiveDatePreset("all");
-    fetchLeads(1, true, "", "", search);
+    fetchLeads(1, true, "", "", search, statusFilter);
+  };
+
+  const handleStatusChange = (e) => {
+    const val = e.target.value;
+    setStatusFilter(val);
+    fetchLeads(1, true, startDate, endDate, search, val);
   };
 
   const handleMarkCallDone = async (lead, e) => {
@@ -169,7 +190,7 @@ export default function ReassignedLeads() {
     try {
       await leadAPI.updateLead(lead._id, { isCallDone: true });
       toast.success("Marked as call done!");
-      fetchLeads(1, true, startDate, endDate, search);
+      fetchLeads(1, true, startDate, endDate, search, statusFilter);
     } catch (err) {
       toast.error(err?.response?.data?.message || "Failed to mark call done.");
     }
@@ -215,21 +236,13 @@ export default function ReassignedLeads() {
       await leadAPI.updateLead(statusLead._id, { status: newStatus });
       toast.success("Status updated!");
       setStatusModal(false);
-      fetchLeads(1, true, startDate, endDate, search);
+      fetchLeads(1, true, startDate, endDate, search, statusFilter);
     } catch (err) {
       toast.error(err?.response?.data?.message || "Failed to update status.");
     } finally { setUpdatingStatus(false); }
   };
 
-  const filtered = leads.filter(l => {
-    const q = search.toLowerCase();
-    return !search ||
-      l.name?.toLowerCase().includes(q) ||
-      l.phone?.includes(search) ||
-      l.email?.toLowerCase().includes(q);
-  });
-
-  const paginated = filtered;
+  const paginated = leads;
   const inputSt   = { backgroundColor: c.background, color: c.text, borderColor: c.border };
 
   if (loading) return (
@@ -261,10 +274,10 @@ export default function ReassignedLeads() {
             Reassigned Leads
           </h1>
           <p className="mt-1 text-sm" style={{ color: c.textSecondary }}>
-            {leads.length} leads reassigned to you {startDate || endDate ? `(filtered ${activeDatePreset !== "custom" && activeDatePreset !== "all" ? `• ${activeDatePreset.replace("_", " ")}` : ""})` : "— call them now"}
+            {total} leads reassigned to you {startDate || endDate || statusFilter !== "all" ? `(filtered ${activeDatePreset !== "custom" && activeDatePreset !== "all" ? `• ${activeDatePreset.replace("_", " ")}` : ""}${statusFilter !== "all" ? ` • ${statusFilter.replace("_", " ")}` : ""})` : "— call them now"}
           </p>
         </div>
-        <button onClick={() => fetchLeads(1, true, startDate, endDate, search)}
+        <button onClick={() => fetchLeads(1, true, startDate, endDate, search, statusFilter)}
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold border transition-all hover:opacity-80"
           style={{ borderColor: c.border, color: c.textSecondary, backgroundColor: c.surface }}>
           <RefreshCw size={14} /> Refresh
@@ -273,22 +286,36 @@ export default function ReassignedLeads() {
 
       {/* Search & Date Filter Card */}
       <div className="p-4 sm:p-5 rounded-2xl border space-y-3.5 shadow-sm" style={{ backgroundColor: c.surface, borderColor: c.border }}>
-        {/* Row 1: Search bar + Quick Date Presets */}
+        {/* Row 1: Search bar + Status Dropdown + Quick Date Presets */}
         <div className="flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between">
-          <div className="relative flex-1">
-            <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: c.textSecondary }} />
-            <input value={search} onChange={e => { setSearch(e.target.value); if (e.target.value === "") fetchLeads(1, true, startDate, endDate, ""); }}
-              onKeyDown={e => e.key === "Enter" && fetchLeads(1, true, startDate, endDate, search)}
-              placeholder="Search by name, phone, email... (press Enter)"
-              className="w-full pl-10 pr-9 py-2.5 rounded-xl border text-sm outline-none transition-all focus:ring-2 focus:ring-primary/20"
-              style={inputSt} />
-            {search && (
-              <button onClick={() => { setSearch(""); fetchLeads(1, true, startDate, endDate, ""); }}
-                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:opacity-80"
-                style={{ color: c.textSecondary }}>
-                <X size={14} />
-              </button>
-            )}
+          <div className="flex flex-col sm:flex-row gap-2.5 flex-1">
+            <div className="relative flex-1">
+              <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2" style={{ color: c.textSecondary }} />
+              <input value={search} onChange={e => { setSearch(e.target.value); if (e.target.value === "") fetchLeads(1, true, startDate, endDate, "", statusFilter); }}
+                onKeyDown={e => e.key === "Enter" && fetchLeads(1, true, startDate, endDate, search, statusFilter)}
+                placeholder="Search by name, phone, email... (press Enter)"
+                className="w-full pl-10 pr-9 py-2.5 rounded-xl border text-sm outline-none transition-all focus:ring-2 focus:ring-primary/20"
+                style={inputSt} />
+              {search && (
+                <button onClick={() => { setSearch(""); fetchLeads(1, true, startDate, endDate, "", statusFilter); }}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:opacity-80"
+                  style={{ color: c.textSecondary }}>
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+
+            {/* Status Filter */}
+            <select
+              value={statusFilter}
+              onChange={handleStatusChange}
+              className="px-3.5 py-2.5 rounded-xl border text-xs font-bold outline-none cursor-pointer"
+              style={inputSt}
+            >
+              {STATUS_OPTS.map(opt => (
+                <option key={opt.value} value={opt.value}>{opt.label}</option>
+              ))}
+            </select>
           </div>
 
           {/* Quick Date Presets */}
@@ -391,7 +418,7 @@ export default function ReassignedLeads() {
           <span className="text-5xl">📞</span>
           <p className="font-bold text-lg mt-3" style={{ color: c.text }}>No reassigned leads</p>
           <p className="text-sm mt-1" style={{ color: c.textSecondary }}>
-            {search || startDate || endDate ? "Try adjusting your search or date filter" : "You have no reassigned leads right now"}
+            {search || startDate || endDate || statusFilter !== "all" ? "Try adjusting your search, status or date filter" : "You have no reassigned leads right now"}
           </p>
         </div>
       )}
@@ -403,7 +430,7 @@ export default function ReassignedLeads() {
             <table className="w-full text-left border-collapse min-w-[900px]">
               <thead>
                 <tr style={{ backgroundColor: isDark ? `${c.background}99` : `${c.background}80`, borderBottom: `1px solid ${c.border}` }}>
-                  {["#", "Name", "Phone", "Status", "Priority", "Assigned To", "Created At", "Actions"].map((h, i) => (
+                  {["#", "Name", "Phone", "Status", "Priority", "Assigned To", "Reassigned Date", "Actions"].map((h, i) => (
                     <th key={i} className="px-4 py-3.5 text-[11px] font-black uppercase tracking-wider whitespace-nowrap"
                       style={{ color: c.textSecondary }}>{h}</th>
                   ))}
@@ -458,14 +485,19 @@ export default function ReassignedLeads() {
                     </td>
 
                     <td className="px-4 py-3 whitespace-nowrap">
-                      {lead.createdAt ? (
+                      {lead.reassignedAt || lead.updatedAt || lead.createdAt ? (
                         <div>
                           <p className="text-xs font-bold" style={{ color: c.text }}>
-                            {new Date(lead.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
+                            {new Date(lead.reassignedAt || lead.updatedAt || lead.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
                           </p>
                           <p className="text-[11px]" style={{ color: c.textSecondary }}>
-                            {new Date(lead.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}
+                            {new Date(lead.reassignedAt || lead.updatedAt || lead.createdAt).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}
                           </p>
+                          {lead.createdAt && (
+                            <p className="text-[10px] mt-0.5" style={{ color: c.textSecondary }}>
+                              Created: {new Date(lead.createdAt).toLocaleDateString("en-IN", { day: "2-digit", month: "short" })}
+                            </p>
+                          )}
                         </div>
                       ) : <span className="text-xs" style={{ color: c.textSecondary }}>—</span>}
                     </td>
@@ -516,7 +548,7 @@ export default function ReassignedLeads() {
       {/* Load More */}
       {hasMore && (
         <div className="flex justify-center pt-2">
-          <button onClick={() => fetchLeads(page + 1, false)}
+          <button onClick={() => fetchLeads(page + 1, false, startDate, endDate, search, statusFilter)}
             disabled={loadingMore}
             className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold border transition-all hover:opacity-80 disabled:opacity-50"
             style={{ borderColor: c.border, color: c.textSecondary, backgroundColor: c.surface }}>
@@ -526,7 +558,7 @@ export default function ReassignedLeads() {
       )}
       {!hasMore && leads.length > 0 && (
         <p className="text-center text-xs py-2" style={{ color: c.textSecondary }}>
-          Showing all {leads.length} reassigned leads
+          Showing all {leads.length} of {total} reassigned leads
         </p>
       )}
 
