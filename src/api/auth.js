@@ -25,4 +25,9 @@ export const authAPI = {
     });
     return response.data;
   },
+
+  saveFCMToken: async (fcmToken) => {
+    const response = await axiosInstance.post("/auth/fcm-token", { fcmToken });
+    return response.data;
+  },
 };
