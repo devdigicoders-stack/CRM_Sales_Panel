@@ -5,7 +5,7 @@ import { leadAPI } from "../api/lead";
 import axiosInstance from "../api/axiosInstance";
 import {
   ArrowLeft, CheckCircle2, IndianRupee, Wrench,
-  FileText, Send, AlertCircle, Users
+  FileText, Send, AlertCircle, Users, Plus, Trash2
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -15,13 +15,17 @@ export default function SaleConfirm() {
   const navigate = useNavigate();
   const isDark = c.mode === "dark";
 
-  const [lead, setLead]       = useState(null);
+  const [lead, setLead]         = useState(null);
   const [products, setProducts] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving]   = useState(false);
-  const [form, setForm]       = useState({
-    productId:      "",
-    productQuantity: 1,
+  const [loading, setLoading]   = useState(true);
+  const [saving, setSaving]     = useState(false);
+
+  // Multi-Product Selected Items State
+  const [productItems, setProductItems] = useState([
+    { rowId: Date.now(), productId: "", quantity: 1, price: 0, name: "" }
+  ]);
+
+  const [form, setForm] = useState({
     productDetails: "",
     dealValue:      "",
     accountRemarks: "",
@@ -40,16 +44,25 @@ export default function SaleConfirm() {
         const deal = l?.dealValue || 0;
         const paid = l?.amountPaid || 0;
         const pending = Math.max(0, deal - paid);
+
         setForm(f => ({
           ...f,
-          productId:      l?.productId || "",
-          productQuantity: l?.productQuantity || 1,
           productDetails: l?.productDetails || "",
           dealValue:      deal || "",
           accountRemarks: l?.accountRemarks || "",
           amountPaid:     paid || "",
           pendingAmount:  pending || "",
         }));
+
+        if (l?.productId) {
+          setProductItems([{
+            rowId: Date.now(),
+            productId: l.productId,
+            quantity: l.productQuantity || 1,
+            price: 0,
+            name: l.productDetails || ""
+          }]);
+        }
       })
       .catch(() => toast.error("Failed to load lead."))
       .finally(() => setLoading(false));
@@ -64,6 +77,72 @@ export default function SaleConfirm() {
       .catch(err => console.error("Failed to load catalog products", err));
   }, [id]);
 
+  // Recalculate summary totals whenever productItems change
+  const syncProductTotals = (updatedItems, currentPaid = form.amountPaid) => {
+    let totalDeal = 0;
+    const detailsList = [];
+
+    updatedItems.forEach(item => {
+      if (item.productId) {
+        const prod = products.find(p => p._id === item.productId);
+        const price = prod ? (prod.sellingPrice || 0) : item.price;
+        const lineTotal = price * (Number(item.quantity) || 1);
+        totalDeal += lineTotal;
+        detailsList.push(`${item.quantity}x ${prod ? prod.name : item.name} (₹${lineTotal.toLocaleString('en-IN')})`);
+      } else if (item.name) {
+        detailsList.push(`${item.quantity}x ${item.name}`);
+      }
+    });
+
+    const newDealValue = totalDeal > 0 ? totalDeal.toString() : form.dealValue;
+    const paidNum = Number(currentPaid) || 0;
+    const dealNum = Number(newDealValue) || 0;
+    const pendingNum = Math.max(0, dealNum - paidNum);
+
+    setForm(f => ({
+      ...f,
+      dealValue: newDealValue,
+      pendingAmount: pendingNum.toString(),
+      productDetails: detailsList.length > 0 ? detailsList.join(", ") : f.productDetails
+    }));
+  };
+
+  const handleAddRow = () => {
+    const newItems = [
+      ...productItems,
+      { rowId: Date.now() + Math.random(), productId: "", quantity: 1, price: 0, name: "" }
+    ];
+    setProductItems(newItems);
+    syncProductTotals(newItems);
+  };
+
+  const handleRemoveRow = (rowId) => {
+    if (productItems.length === 1) return;
+    const newItems = productItems.filter(item => item.rowId !== rowId);
+    setProductItems(newItems);
+    syncProductTotals(newItems);
+  };
+
+  const handleItemChange = (rowId, field, value) => {
+    const newItems = productItems.map(item => {
+      if (item.rowId === rowId) {
+        const updated = { ...item, [field]: value };
+        if (field === "productId") {
+          const prod = products.find(p => p._id === value);
+          if (prod) {
+            updated.name = prod.name;
+            updated.price = prod.sellingPrice || 0;
+          }
+        }
+        return updated;
+      }
+      return item;
+    });
+
+    setProductItems(newItems);
+    syncProductTotals(newItems);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.productDetails.trim()) return toast.error("Product details required.");
@@ -75,9 +154,16 @@ export default function SaleConfirm() {
     setSaving(true);
     try {
       const formData = new FormData();
-      formData.append("productId", form.productId);
-      formData.append("productQuantity", Number(form.productQuantity));
+
+      // Main product fallback & full items JSON
+      const firstValidItem = productItems.find(i => i.productId);
+      const mainProdId = firstValidItem ? firstValidItem.productId : "";
+      const totalQty = productItems.reduce((acc, curr) => acc + (Number(curr.quantity) || 1), 0);
+
+      formData.append("productId", mainProdId);
+      formData.append("productQuantity", totalQty);
       formData.append("productDetails", form.productDetails);
+      formData.append("items", JSON.stringify(productItems));
       formData.append("dealValue", Number(form.dealValue));
       formData.append("amountPaid", Number(form.amountPaid));
       formData.append("pendingAmount", Number(form.pendingAmount));
@@ -88,7 +174,7 @@ export default function SaleConfirm() {
       });
 
       await leadAPI.confirmSale(id, formData);
-      toast.success("Sale confirmed & transferred to Accounts!");
+      toast.success("Sale confirmed with multiple products & transferred to Accounts!");
       navigate(`/lead-details/${id}`);
     } catch (err) {
       toast.error(err?.response?.data?.message || "Failed to confirm sale.");
@@ -140,184 +226,162 @@ export default function SaleConfirm() {
 
         <form onSubmit={handleSubmit} className="p-5 space-y-5">
 
-          {/* Select Product from Stock Catalog */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* MULTI-PRODUCT SELECTION LIST */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="text-[11px] font-black uppercase tracking-wider block" style={{ color: c.textSecondary }}>
+                <Wrench size={11} className="inline mr-1" /> SELECT PRODUCTS (STOCK CATALOG) *
+              </label>
+              <button
+                type="button"
+                onClick={handleAddRow}
+                className="px-3 py-1.5 text-xs font-bold rounded-xl flex items-center gap-1 bg-amber-500 text-black hover:bg-amber-400 transition"
+              >
+                <Plus size={14} /> Add Product
+              </button>
+            </div>
+
+            {productItems.map((item, idx) => (
+              <div key={item.rowId} className="grid grid-cols-12 gap-2 items-center p-3 rounded-xl border bg-slate-50/50" style={{ borderColor: c.border }}>
+                {/* Product Dropdown */}
+                <div className="col-span-7">
+                  <select
+                    value={item.productId}
+                    onChange={e => handleItemChange(item.rowId, "productId", e.target.value)}
+                    className="w-full p-2.5 rounded-xl border text-xs outline-none"
+                    style={inputSt}
+                  >
+                    <option value="">-- Select Product {idx + 1} --</option>
+                    {products.map(p => (
+                      <option key={p._id} value={p._id} disabled={p.currentStock <= 0}>
+                        {p.name} {p.sellingPrice ? `(₹${p.sellingPrice.toLocaleString('en-IN')})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Quantity */}
+                <div className="col-span-4">
+                  <input
+                    type="number"
+                    min="1"
+                    placeholder="Qty"
+                    value={item.quantity}
+                    onChange={e => handleItemChange(item.rowId, "quantity", e.target.value)}
+                    className="w-full p-2.5 rounded-xl border text-xs outline-none font-bold"
+                    style={inputSt}
+                    required
+                  />
+                </div>
+
+                {/* Delete Row */}
+                <div className="col-span-1 text-right">
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveRow(item.rowId)}
+                    disabled={productItems.length === 1}
+                    className="p-2 text-rose-500 hover:bg-rose-50 rounded-lg transition disabled:opacity-30"
+                    title="Remove item"
+                  >
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Product Details Description */}
+          <div>
+            <label className="text-[11px] font-black uppercase tracking-wider block mb-2" style={{ color: c.textSecondary }}>
+              <Wrench size={11} className="inline mr-1" /> Product / Service Description Summary *
+            </label>
+            <textarea
+              rows={3}
+              value={form.productDetails}
+              onChange={e => setForm({ ...form, productDetails: e.target.value })}
+              placeholder="e.g. 2x Teachmint X 86, 1x LIGHT STAND 9FT..."
+              className="w-full p-3 rounded-xl border text-sm outline-none"
+              style={inputSt}
+              required
+            />
+          </div>
+
+          {/* Deal Value, Paid, Pending */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="text-[11px] font-black uppercase tracking-wider block mb-2" style={{ color: c.textSecondary }}>
-                <Wrench size={11} className="inline mr-1" /> Select Product (Stock Catalog)
+                <IndianRupee size={11} className="inline mr-1" /> Deal Value (Total ₹) *
               </label>
-              <select
-                value={form.productId}
+              <input
+                type="number"
+                min="0"
+                value={form.dealValue}
                 onChange={e => {
-                  const prodId = e.target.value;
-                  const selectedProd = products.find(p => p._id === prodId);
-                  setForm(f => ({
-                    ...f,
-                    productId: prodId,
-                    productDetails: selectedProd ? selectedProd.name : f.productDetails,
-                    dealValue: selectedProd ? selectedProd.sellingPrice.toString() : f.dealValue,
-                    pendingAmount: selectedProd ? Math.max(0, selectedProd.sellingPrice - (Number(f.amountPaid) || 0)).toString() : f.pendingAmount
-                  }));
+                  const val = e.target.value;
+                  const paid = Number(form.amountPaid) || 0;
+                  const pend = Math.max(0, (Number(val) || 0) - paid);
+                  setForm({ ...form, dealValue: val, pendingAmount: pend.toString() });
                 }}
-                className="w-full p-3 rounded-xl border text-sm outline-none"
+                className="w-full p-3 rounded-xl border text-sm outline-none font-extrabold"
                 style={inputSt}
-              >
-                <option value="">-- Select Product --</option>
-                {products.map(p => (
-                  <option key={p._id} value={p._id} disabled={p.currentStock <= 0}>
-                    {p.name}
-                  </option>
-                ))}
-              </select>
+                required
+              />
             </div>
 
             <div>
               <label className="text-[11px] font-black uppercase tracking-wider block mb-2" style={{ color: c.textSecondary }}>
-                Quantity *
+                <IndianRupee size={11} className="inline mr-1" /> Amount Paid (₹) *
               </label>
               <input
                 type="number"
-                min="1"
-                value={form.productQuantity}
+                min="0"
+                value={form.amountPaid}
                 onChange={e => {
-                  const qty = Number(e.target.value) || 1;
-                  setForm(f => {
-                    const selectedProd = products.find(p => p._id === f.productId);
-                    const dealPrice = selectedProd ? (selectedProd.sellingPrice * qty) : Number(f.dealValue);
-                    return {
-                      ...f,
-                      productQuantity: qty,
-                      dealValue: selectedProd ? dealPrice.toString() : f.dealValue,
-                      pendingAmount: selectedProd ? Math.max(0, dealPrice - (Number(f.amountPaid) || 0)).toString() : f.pendingAmount
-                    };
-                  });
+                  const paid = e.target.value;
+                  const deal = Number(form.dealValue) || 0;
+                  const pend = Math.max(0, deal - (Number(paid) || 0));
+                  setForm({ ...form, amountPaid: paid, pendingAmount: pend.toString() });
                 }}
-                className="w-full p-3 rounded-xl border text-sm outline-none"
+                className="w-full p-3 rounded-xl border text-sm outline-none font-bold"
+                style={inputSt}
+                required
+              />
+            </div>
+
+            <div>
+              <label className="text-[11px] font-black uppercase tracking-wider block mb-2" style={{ color: c.textSecondary }}>
+                <IndianRupee size={11} className="inline mr-1" /> Pending Amount (₹) *
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={form.pendingAmount}
+                onChange={e => setForm({ ...form, pendingAmount: e.target.value })}
+                className="w-full p-3 rounded-xl border text-sm outline-none font-bold"
                 style={inputSt}
                 required
               />
             </div>
           </div>
 
-          {/* Product Details */}
+          {/* Payment Screenshot Upload */}
           <div>
             <label className="text-[11px] font-black uppercase tracking-wider block mb-2" style={{ color: c.textSecondary }}>
-              <Wrench size={11} className="inline mr-1" /> Product / Service Description Details *
+              <FileText size={11} className="inline mr-1" /> Payment Screenshot / Proof *
             </label>
-            <textarea value={form.productDetails}
-              onChange={e => setForm(f => ({ ...f, productDetails: e.target.value }))}
-              rows={3} placeholder="e.g. Shop 105, Mall Road - Fiber Router & CCTV Setup"
-              className="w-full p-3 rounded-xl border text-sm outline-none resize-none"
-              style={inputSt} required />
-          </div>
-
-          {/* Deal Value */}
-          <div>
-            <label className="text-[11px] font-black uppercase tracking-wider block mb-2" style={{ color: c.textSecondary }}>
-              <IndianRupee size={11} className="inline mr-1" /> Deal Value (₹) *
-            </label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 font-black" style={{ color: c.textSecondary }}>₹</span>
-              <input type="number" value={form.dealValue}
-                onChange={e => {
-                  const val = e.target.value;
-                  setForm(f => {
-                    const deal = Number(val) || 0;
-                    const paid = Number(f.amountPaid) || 0;
-                    return {
-                      ...f,
-                      dealValue: val,
-                      pendingAmount: Math.max(0, deal - paid).toString()
-                    };
-                  });
-                }}
-                placeholder="e.g. 25000"
-                className="w-full pl-7 pr-4 py-3 rounded-xl border text-sm outline-none"
-                style={inputSt} required min={0} />
-            </div>
-          </div>
-
-          {/* Amount Paid */}
-          <div>
-            <label className="text-[11px] font-black uppercase tracking-wider block mb-2" style={{ color: c.textSecondary }}>
-              <IndianRupee size={11} className="inline mr-1" /> Amount Paid (₹) *
-            </label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 font-black" style={{ color: c.textSecondary }}>₹</span>
-              <input type="number" value={form.amountPaid}
-                onChange={e => {
-                  const val = e.target.value;
-                  setForm(f => {
-                    const deal = Number(f.dealValue) || 0;
-                    const paid = Number(val) || 0;
-                    return {
-                      ...f,
-                      amountPaid: val,
-                      pendingAmount: Math.max(0, deal - paid).toString()
-                    };
-                  });
-                }}
-                placeholder="e.g. 10000"
-                className="w-full pl-7 pr-4 py-3 rounded-xl border text-sm outline-none"
-                style={inputSt} required min={0} />
-            </div>
-          </div>
-
-          {/* Pending Amount */}
-          <div>
-            <label className="text-[11px] font-black uppercase tracking-wider block mb-2" style={{ color: c.textSecondary }}>
-              <IndianRupee size={11} className="inline mr-1" /> Pending Amount (₹)
-            </label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 font-black" style={{ color: c.textSecondary }}>₹</span>
-              <input type="number" value={form.pendingAmount}
-                className="w-full pl-7 pr-4 py-3 rounded-xl border text-sm outline-none opacity-80 cursor-not-allowed"
-                style={{ ...inputSt, backgroundColor: isDark ? `${c.background}80` : "#f3f4f6" }} readOnly />
-            </div>
-          </div>
-
-          {/* Payment Screenshots */}
-          <div>
-            <label className="text-[11px] font-black uppercase tracking-wider block mb-2" style={{ color: c.textSecondary }}>
-              <FileText size={11} className="inline mr-1" /> Payment Screenshots / Receipts *
-            </label>
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-3">
-                <input type="file" multiple accept="image/*,application/pdf" id="payment-screenshot-input"
-                  onChange={e => {
-                    if (e.target.files && e.target.files.length > 0) {
-                      const newFiles = Array.from(e.target.files);
-                      setForm(f => ({ ...f, paymentScreenshots: [...f.paymentScreenshots, ...newFiles] }));
-                      e.target.value = "";
-                    }
-                  }}
-                  className="hidden" />
-                <label htmlFor="payment-screenshot-input"
-                  className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border text-xs font-bold cursor-pointer hover:opacity-90 transition-all"
-                  style={{ backgroundColor: c.surface, borderColor: c.border, color: c.text }}>
-                  <FileText size={14} /> Choose Files
-                </label>
-                <span className="text-xs" style={{ color: c.textSecondary }}>
-                  {form.paymentScreenshots.length > 0 ? `${form.paymentScreenshots.length} file(s) selected` : "No files chosen (Mandatory)"}
-                </span>
-              </div>
-              {form.paymentScreenshots.length > 0 && (
-                <div className="flex flex-col gap-1.5 mt-2">
-                  {form.paymentScreenshots.map((f, i) => (
-                    <div key={i} className="flex items-center justify-between p-2 rounded-lg border text-xs" style={{ backgroundColor: c.surface, borderColor: c.border }}>
-                      <span className="truncate pr-2 font-medium" style={{ color: c.text }}>• {f.name}</span>
-                      <button
-                        type="button"
-                        onClick={() => setForm(prev => ({ ...prev, paymentScreenshots: prev.paymentScreenshots.filter((_, idx) => idx !== i) }))}
-                        className="text-red-500 hover:text-red-700 font-bold px-1.5 py-0.5 text-xs rounded hover:bg-red-50 transition-colors"
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              onChange={e => setForm({ ...form, paymentScreenshots: Array.from(e.target.files) })}
+              className="w-full p-2.5 rounded-xl border text-xs outline-none bg-white"
+              style={inputSt}
+            />
+            {form.paymentScreenshots.length > 0 && (
+              <p className="text-xs text-emerald-600 font-bold mt-1">
+                ✓ {form.paymentScreenshots.length} file(s) selected
+              </p>
+            )}
           </div>
 
           {/* Account Remarks */}
@@ -325,46 +389,29 @@ export default function SaleConfirm() {
             <label className="text-[11px] font-black uppercase tracking-wider block mb-2" style={{ color: c.textSecondary }}>
               <FileText size={11} className="inline mr-1" /> Remarks for Accounts Team
             </label>
-            <textarea value={form.accountRemarks}
-              onChange={e => setForm(f => ({ ...f, accountRemarks: e.target.value }))}
-              rows={3} placeholder="Any notes for the accounts team..."
-              className="w-full p-3 rounded-xl border text-sm outline-none resize-none"
-              style={inputSt} />
-          </div>
-
-          {/* Transfer Toggle */}
-          <div className="flex items-center justify-between p-4 rounded-xl border"
-            style={{ backgroundColor: isDark ? `${c.primary}10` : "#eff6ff", borderColor: `${c.primary}30` }}>
-            <div className="flex items-center gap-3">
-              <Users size={18} style={{ color: c.primary }} />
-              <div>
-                <p className="text-sm font-black" style={{ color: c.text }}>Transfer to Accounts Team</p>
-                <p className="text-xs" style={{ color: c.textSecondary }}>Auto-transfer lead for billing & verification</p>
-              </div>
-            </div>
-            <button type="button"
-              onClick={() => setForm(f => ({ ...f, transferToAccounts: !f.transferToAccounts }))}
-              className="w-12 h-6 rounded-full transition-all relative"
-              style={{ backgroundColor: form.transferToAccounts ? c.primary : c.border }}>
-              <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${form.transferToAccounts ? "right-0.5" : "left-0.5"}`} />
-            </button>
+            <textarea
+              rows={2}
+              value={form.accountRemarks}
+              onChange={e => setForm({ ...form, accountRemarks: e.target.value })}
+              placeholder="e.g. Received ₹50,000 via UPI transaction #982173. Balance COD."
+              className="w-full p-3 rounded-xl border text-sm outline-none"
+              style={inputSt}
+            />
           </div>
 
           {/* Submit */}
-          <div className="flex gap-3 pt-2 border-t" style={{ borderColor: c.border }}>
-            <button type="button" onClick={() => navigate(-1)}
-              className="flex-1 py-3 rounded-xl text-sm font-bold border"
-              style={{ borderColor: c.border, color: c.textSecondary }}>
-              Cancel
-            </button>
-            <button type="submit" disabled={saving}
-              className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold disabled:opacity-60 transition-all hover:opacity-90"
-              style={{ backgroundColor: "#f59e0b", color: "#fff" }}>
-              {saving
-                ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Confirming…</>
-                : <><CheckCircle2 size={15} /> Confirm Sale</>}
+          <div className="pt-2">
+            <button
+              type="submit"
+              disabled={saving}
+              className="w-full py-3.5 px-6 rounded-xl text-sm font-black text-white shadow-lg flex items-center justify-center gap-2 transition disabled:opacity-50"
+              style={{ backgroundColor: c.primary }}
+            >
+              <Send size={16} />
+              {saving ? "Confirming & Transferring..." : "Confirm Sale & Transfer to Accounts"}
             </button>
           </div>
+
         </form>
       </div>
     </div>
