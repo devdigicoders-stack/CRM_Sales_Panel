@@ -110,6 +110,26 @@ export default function AssignedLeads() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  const [tabCounts, setTabCounts] = useState({ pending: 0, done: 0, total: 0 });
+
+  const fetchTabCounts = async () => {
+    try {
+      const [pendingRes, doneRes] = await Promise.allSettled([
+        leadAPI.getAllLeads({ limit: 1, isCallDone: "false" }),
+        leadAPI.getAllLeads({ limit: 1, isCallDone: "true" })
+      ]);
+      const pending = pendingRes.status === "fulfilled" ? (pendingRes.value?.total || 0) : 0;
+      const done = doneRes.status === "fulfilled" ? (doneRes.value?.total || 0) : 0;
+      setTabCounts({ pending, done, total: pending + done });
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    fetchTabCounts();
+  }, []);
+
   useEffect(() => { fetchLeads(1); }, [status, callTab, dateFilter, selectedTags]);
 
   const fetchLeads = async (pageNum = page) => {
@@ -129,9 +149,17 @@ export default function AssignedLeads() {
       
       if (leadsRes.status === "fulfilled") {
         setLeads(leadsRes.value?.data?.leads || []);
-        setTotal(leadsRes.value?.total || 0);
+        const fetchedTotal = leadsRes.value?.total || 0;
+        setTotal(fetchedTotal);
         setTotalPages(leadsRes.value?.pages || 1);
         setPage(pageNum);
+
+        // Update active tab count
+        if (callTab === "pending") {
+          setTabCounts(prev => ({ ...prev, pending: fetchedTotal, total: fetchedTotal + prev.done }));
+        } else {
+          setTabCounts(prev => ({ ...prev, done: fetchedTotal, total: prev.pending + fetchedTotal }));
+        }
       } else {
         throw new Error("Failed to load leads");
       }
@@ -452,7 +480,9 @@ export default function AssignedLeads() {
   const paginated = leads;
 
   const stats = [
-    { label: "Total",         value: total,    color: c.primary,  bg: `${c.primary}12`, icon: Users      },
+    { label: "Pending Calls", value: tabCounts.pending, color: "#f59e0b", bg: "#fef3c7", icon: PhoneCall },
+    { label: "Call Done",     value: tabCounts.done,    color: "#10b981", bg: "#d1fae5", icon: CheckCircle2 },
+    { label: "Total Assigned", value: tabCounts.total || total, color: c.primary, bg: `${c.primary}12`, icon: Users },
     { label: "Page",          value: `${page}/${totalPages}`, color: "#6b7280", bg: "#f9fafb", icon: RefreshCw },
   ];
 
@@ -484,23 +514,25 @@ export default function AssignedLeads() {
           <h1 className="text-2xl sm:text-3xl font-black flex items-center gap-2" style={{ color: c.text }}>
             <UserCheck size={26} style={{ color: c.primary }} /> Assigned Leads
           </h1>
-          <p className="mt-1 text-sm" style={{ color: c.textSecondary }}>
-            {total} total leads assigned to you
+          <p className="mt-1 text-sm font-medium" style={{ color: c.textSecondary }}>
+            {callTab === "pending"
+              ? `${total} pending call leads waiting (${tabCounts.total || total} total leads assigned to you)`
+              : `${total} completed call leads (${tabCounts.total || total} total leads assigned to you)`}
           </p>
         </div>
         <div className="flex gap-2">
           <button onClick={openAddLeadModal}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all hover:opacity-90"
+            className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all hover:opacity-90 cursor-pointer"
             style={{ backgroundColor: c.primary, color: "#fff" }}>
             <Plus size={15} /> Add Lead
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {stats.map(({ label, value, color, bg, icon: Icon }) => (
           <div key={label}
-            className="rounded-2xl border p-4 flex flex-col gap-1 hover:-translate-y-0.5 transition-all"
+            className="rounded-2xl border p-4 flex flex-col gap-1 hover:-translate-y-0.5 transition-all shadow-sm"
             style={{ backgroundColor: isDark ? c.surface : bg, borderColor: c.border }}>
             <div className="flex items-center justify-between">
               <p className="text-[10px] font-black uppercase tracking-wider" style={{ color: isDark ? c.textSecondary : color }}>{label}</p>
@@ -513,22 +545,24 @@ export default function AssignedLeads() {
 
       <div className="flex gap-3 mb-2">
         <button onClick={() => setCallTab("pending")}
-          className="px-5 py-2.5 rounded-xl text-sm font-bold transition-all border"
+          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all border cursor-pointer"
           style={{
             backgroundColor: callTab === "pending" ? c.primary : "transparent",
             color: callTab === "pending" ? "#fff" : c.textSecondary,
             borderColor: callTab === "pending" ? c.primary : c.border
           }}>
-          Pending Calls
+          <PhoneCall size={15} />
+          Pending Calls ({tabCounts.pending})
         </button>
         <button onClick={() => setCallTab("done")}
-          className="px-6 py-2.5 rounded-xl text-sm font-bold transition-all border"
+          className="flex items-center gap-2 px-6 py-2.5 rounded-xl text-sm font-bold transition-all border cursor-pointer"
           style={{
             backgroundColor: callTab === "done" ? c.primary : "transparent",
             color: callTab === "done" ? "#fff" : c.textSecondary,
             borderColor: callTab === "done" ? c.primary : c.border
           }}>
-          Call Done
+          <CheckCircle2 size={15} />
+          Call Done ({tabCounts.done})
         </button>
       </div>
 
